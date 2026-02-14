@@ -13,19 +13,8 @@ st.set_page_config(
     page_icon="🧬"
 )
 
-# Custom CSS for a cleaner look
-st.markdown("""
-    <style>
-    .main { background-color: #f5f7f9; }
-    .stExpander { background-color: white !important; border-radius: 10px; }
-    </style>
-    """, unsafe_allow_index=True)
-
-st.title("🧬 Molecular Biology Research Assistant")
-st.caption("Advanced RAG System: Querying Lehninger Principles of Biochemistry")
-
 # --- 2. Configuration & Secrets ---
-# Update 'lehninger.pdf' to match the exact filename in your GitHub
+# Ensure this matches your file in GitHub exactly
 PDF_PATH = "lehninger.pdf" 
 PINECONE_API_KEY = st.secrets["PINECONE_API_KEY"]
 INDEX_NAME = "lehninger-index"
@@ -43,91 +32,93 @@ def load_vectorstore():
     )
     return vectorstore
 
-def extract_smart_visuals(pdf_path, page_num):
+def extract_smart_visuals(pdf_path, page_num, mode="Smart Crop"):
     """
-    Tries to extract specific image objects. 
-    If none found, renders the full page as a fallback.
+    Extracts visuals from PDF. 
+    Mode 'Smart Crop' isolates diagrams. 'Full Page' shows everything.
     """
     try:
         if not os.path.exists(pdf_path):
             return "file_not_found"
         
         doc = fitz.open(pdf_path)
-        # Convert float metadata (e.g., 1024.0) to int for fitz
         idx = int(float(page_num)) - 1
         page = doc.load_page(idx)
         
-        image_list = page.get_images(full=True)
-        extracted_imgs = []
-
-        if image_list:
-            # Method A: Extract high-res image objects
-            for img in image_list:
-                xref = img[0]
-                base_image = doc.extract_image(xref)
-                image_bytes = base_image["image"]
-                extracted_imgs.append(Image.open(io.BytesIO(image_bytes)))
-            return extracted_imgs
-        else:
-            # Method B: Render whole page if it's vector-based art
-            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
-            img = Image.open(io.BytesIO(pix.tobytes("png")))
-            return [img]
+        if mode == "Smart Crop":
+            # Identify drawing and image areas
+            paths = page.get_drawings()
+            images = page.get_image_info()
+            bboxes = [p["rect"] for p in paths] + [i["bbox"] for i in images]
+            
+            if bboxes:
+                # Calculate the union of all visual elements
+                v_rect = bboxes[0]
+                for b in bboxes[1:]:
+                    v_rect = v_rect | b
+                # Set cropbox with a bit of padding
+                page.set_cropbox(v_rect + (-15, -15, 15, 15))
+            
+        # Render high-resolution image
+        pix = page.get_pixmap(matrix=fitz.Matrix(2.5, 2.5))
+        return Image.open(io.BytesIO(pix.tobytes("png")))
+        
     except Exception as e:
         return str(e)
 
-# --- 4. Main UI Flow ---
+# --- 4. Sidebar & Profile ---
+with st.sidebar:
+    st.title("👨‍🔬 Researcher Info")
+    st.markdown("""
+    **Yashwant Nama**  
+    *PhD Applicant | Molecular Biology*
+    
+    **Project:** Multimodal RAG for Metabolic Research.
+    """)
+    st.divider()
+    extraction_mode = st.radio(
+        "Visual Extraction Mode:",
+        ["Smart Crop (Focus on Diagrams)", "Full Page View"]
+    )
+    st.divider()
+    if st.checkbox("Show Server Files (Debug)"):
+        st.write(os.listdir("."))
+
+# --- 5. Main UI Flow ---
+st.title("🧬 Molecular Biology Research Assistant")
+st.write(f"Active Database: `{INDEX_NAME}`")
 
 docsearch = load_vectorstore()
-
-# Sidebar for researcher profile/info
-with st.sidebar:
-    st.header("Researcher Profile")
-    st.info("**Name:** Yashwant Nama\n\n**Focus:** Computational Biology")
-    st.write("---")
-    st.write("**System Status:**")
-    if os.path.exists(PDF_PATH):
-        st.success("✅ PDF Database Linked")
-    else:
-        st.error("❌ PDF Not Found in Repo")
-        st.caption(f"Looking for: {PDF_PATH}")
-
-query = st.text_input("Enter your biological query:", placeholder="e.g. Describe the role of Carnitine in fatty acid oxidation")
+query = st.text_input("Enter your research question:", placeholder="e.g. How does Glucose-6-Phosphate regulate glycolysis?")
 
 if query:
-    with st.spinner("Analyzing metabolic pathways..."):
-        # Retrieve results
-        results = docsearch.similarity_search(query, k=4)
+    with st.spinner("Querying vector space..."):
+        results = docsearch.similarity_search(query, k=3)
         
         if not results:
-            st.warning("No matches found in the vector index.")
+            st.warning("No matches found.")
         
         for i, doc in enumerate(results):
-            # Clean up page number from metadata
-            raw_page = doc.metadata.get('page', 'N/A')
+            # Resolve the .0 metadata issue
+            raw_page = doc.metadata.get('page', 0)
+            clean_page = int(float(raw_page))
             
-            with st.expander(f"Result {i+1} | Source: Lehninger Page {raw_page}"):
-                col1, col2 = st.columns([3, 2])
+            with st.container():
+                col1, col2 = st.columns([1, 1])
                 
                 with col1:
-                    st.markdown("**Contextual Text Snippet:**")
-                    st.write(doc.page_content)
+                    st.markdown(f"### Result {i+1} (Page {clean_page})")
+                    st.info(doc.page_content)
                 
                 with col2:
-                    if raw_page != 'N/A':
-                        if st.button(f"🖼️ Extract Visuals (P. {raw_page})", key=f"btn_{i}"):
-                            visuals = extract_smart_visuals(PDF_PATH, raw_page)
-                            
-                            if visuals == "file_not_found":
-                                st.error("PDF file missing from server.")
-                            elif isinstance(visuals, list):
-                                for img in visuals:
-                                    st.image(img, use_container_width=True)
+                    if st.button(f"🔍 Extract Visuals from P. {clean_page}", key=f"btn_{i}"):
+                        with st.spinner("Processing PDF..."):
+                            img = extract_smart_visuals(PDF_PATH, clean_page, mode=extraction_mode)
+                            if isinstance(img, Image.Image):
+                                st.image(img, use_container_width=True, caption=f"Visuals extracted from Lehninger, Page {clean_page}")
+                            elif img == "file_not_found":
+                                st.error(f"Error: '{PDF_PATH}' not found in root directory.")
                             else:
-                                st.error(f"Error: {visuals}")
-                    else:
-                        st.info("No page metadata found.")
+                                st.error(f"Extraction failed: {img}")
+                st.divider()
 
-# --- 5. Debug Mode (Optional) ---
-if st.checkbox("Show Debug Info"):
-    st.write("Current Directory Files:", os.listdir("."))

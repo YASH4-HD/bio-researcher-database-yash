@@ -20,43 +20,34 @@ DROPBOX_URL = "https://dl.dropboxusercontent.com/scl/fi/wzbf5ra623k6ex3pt98gc/le
 # 2️⃣ DROPBOX SAFE DOWNLOADER
 # ==========================================================
 
-@st.cache_data(show_spinner=False)
-def download_pdf():
-    """Download and verify PDF from Dropbox."""
+def extract_smart_visuals(page_num, mode="Smart Crop"):
     try:
-        # If file already exists and looks valid, skip download
-        if os.path.exists(PDF_PATH):
-            if os.path.getsize(PDF_PATH) > 5_000_000:  # >5MB sanity check
-                return True
-            else:
-                os.remove(PDF_PATH)
+        if not os.path.exists(PDF_PATH):
+            return "file_not_found"
 
-        st.info("📥 Downloading Lehninger PDF from Dropbox...")
+        doc = fitz.open(PDF_PATH)
+        page = doc.load_page(int(page_num) - 1)
 
-        response = requests.get(DROPBOX_URL, stream=True)
+        # If Full Page View → just render
+        if mode == "Full Page View":
+            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+            return Image.open(io.BytesIO(pix.tobytes("png")))
 
-        if response.status_code != 200:
-            st.error(f"Download failed. Status code: {response.status_code}")
-            return False
+        # Smart Crop (ONLY using drawings, no image_info)
+        drawings = page.get_drawings()
 
-        with open(PDF_PATH, "wb") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
+        if drawings:
+            rect = drawings[0]["rect"]
+            for d in drawings[1:]:
+                rect = rect | d["rect"]
 
-        # Validate PDF integrity
-        try:
-            fitz.open(PDF_PATH)
-            st.success("✅ PDF downloaded and verified.")
-            return True
-        except:
-            os.remove(PDF_PATH)
-            st.error("Downloaded file is corrupted.")
-            return False
+            page.set_cropbox(rect + (-20, -20, 20, 20))
+
+        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+        return Image.open(io.BytesIO(pix.tobytes("png")))
 
     except Exception as e:
-        st.error(f"Download error: {e}")
-        return False
+        return str(e)
 
 
 # ==========================================================

@@ -2,7 +2,8 @@ import streamlit as st
 import os
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_pinecone import PineconeVectorStore
-
+import fitz  # PyMuPDF
+from PIL import Image
 st.set_page_config(page_title="Bio-Researcher AI", layout="wide")
 
 st.title("🧬 Molecular Biology Research Assistant")

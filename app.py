@@ -14,7 +14,8 @@ from langchain_pinecone import PineconeVectorStore
 PDF_PATH = "lehninger.pdf"
 
 # 🔴 Replace with converted dropbox direct link
-DROPBOX_URL = "https://dl.dropboxusercontent.com/scl/fi/wzbf5ra623k6ex3pt98gc/lehninger.pdf?rlkey=fzauw5kna9tyyo2g336f8w5a0"
+DROPBOX_URL = "https://dl.dropboxusercontent.com/scl/fi/wzbf5ra623k6ex3pt98gc/lehninger.pdf?rlkey=fzauw5kna9tyyo2g336f8w5a0
+"
 
 # ==============================
 # 2. SAFE DROPBOX DOWNLOADER

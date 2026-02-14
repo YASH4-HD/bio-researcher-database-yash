@@ -23,28 +23,40 @@ DROPBOX_URL = "https://dl.dropboxusercontent.com/scl/fi/wzbf5ra623k6ex3pt98gc/le
 
 @st.cache_data(show_spinner=False)
 def download_pdf():
-
-    if os.path.exists(PDF_PATH):
-        try:
-            fitz.open(PDF_PATH)
-            return True
-        except:
-            os.remove(PDF_PATH)
-
+    """Force-download PDF and verify integrity."""
+    
     try:
-        with st.spinner("📥 Downloading PDF from Dropbox..."):
+        if os.path.exists(PDF_PATH):
+            # Check file size to ensure it's real
+            if os.path.getsize(PDF_PATH) > 5_000_000:  # >5MB
+                return True
+            else:
+                os.remove(PDF_PATH)  # Corrupted file, delete it
 
-            response = requests.get(
-                DROPBOX_URL,
-                headers={"User-Agent": "Mozilla/5.0"},
-                stream=True,
-                allow_redirects=True,
-                timeout=120
-            )
+        st.info("📥 Downloading Lehninger PDF...")
 
-            if response.status_code != 200:
-                st.error(f"Download failed: Status {response.status_code}")
+        with urllib.request.urlopen(DROPBOX_URL) as response:
+            data = response.read()
+
+            # Check if Dropbox returned HTML instead of PDF
+            if b"<html" in data[:500]:
+                st.error("Dropbox returned HTML instead of PDF. Check link.")
                 return False
+
+            with open(PDF_PATH, "wb") as f:
+                f.write(data)
+
+        # Final verification
+        if os.path.exists(PDF_PATH) and os.path.getsize(PDF_PATH) > 5_000_000:
+            st.success("✅ PDF successfully downloaded and verified.")
+            return True
+        else:
+            st.error("Downloaded file is invalid.")
+            return False
+
+    except Exception as e:
+        st.error(f"Download error: {e}")
+        return False
 
             # Write in chunks (important for large PDFs)
             with open(PDF_PATH, "wb") as f:

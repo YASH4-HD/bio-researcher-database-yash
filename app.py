@@ -1,94 +1,96 @@
 import streamlit as st
 import os
-import fitz  # PyMuPDF
+import fitz
 from PIL import Image
 import io
 import requests
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_pinecone import PineconeVectorStore
 
-# ==========================================================
-# 1️⃣ CONFIGURATION
-# ==========================================================
+# ==============================
+# PAGE CONFIG
+# ==============================
+
+st.set_page_config(
+    page_title="Bio-Researcher AI | Yashwant Nama",
+    layout="wide",
+    initial_sidebar_state="expanded",
+    page_icon="🧬"
+)
+
+# ==============================
+# CONFIG
+# ==============================
 
 PDF_PATH = "lehninger.pdf"
 
-# ✅ CORRECT Dropbox Direct Link (dl=1 required)
-DROPBOX_URL = "https://dl.dropboxusercontent.com/scl/fi/wzbf5ra623k6ex3pt98gc/lehninger.pdf?rlkey=fzauw5kna9tyyo2g336f8w5a0&dl=1"
+# 🔴 USE EXACTLY THIS FORMAT
+DROPBOX_URL = "https://www.dropbox.com/scl/fi/wzbf5ra623k6ex3pt98gc/lehninger.pdf?rlkey=fzauw5kna9tyyo2g336f8w5a0&dl=1"
 
-# ==========================================================
-# 2️⃣ DROPBOX SAFE DOWNLOADER
-# ==========================================================
+# ==============================
+# DOWNLOAD FUNCTION
+# ==============================
 
-def extract_smart_visuals(page_num, mode="Smart Crop"):
+@st.cache_data(show_spinner=False)
+def download_pdf():
+
     try:
-        if not os.path.exists(PDF_PATH):
-            return "file_not_found"
+        if os.path.exists(PDF_PATH) and os.path.getsize(PDF_PATH) > 5_000_000:
+            return True
 
-        doc = fitz.open(PDF_PATH)
-        page = doc.load_page(int(page_num) - 1)
+        st.info("📥 Downloading Lehninger PDF...")
 
-        # If Full Page View → just render
-        if mode == "Full Page View":
-            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
-            return Image.open(io.BytesIO(pix.tobytes("png")))
+        response = requests.get(DROPBOX_URL, stream=True)
 
-        # Smart Crop (ONLY using drawings, no image_info)
-        drawings = page.get_drawings()
+        if response.status_code != 200:
+            st.error("Failed to download PDF.")
+            return False
 
-        if drawings:
-            rect = drawings[0]["rect"]
-            for d in drawings[1:]:
-                rect = rect | d["rect"]
+        with open(PDF_PATH, "wb") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
 
-            page.set_cropbox(rect + (-20, -20, 20, 20))
+        # Verify PDF header
+        with open(PDF_PATH, "rb") as f:
+            header = f.read(4)
+            if header != b"%PDF":
+                os.remove(PDF_PATH)
+                st.error("Downloaded file is not a valid PDF.")
+                return False
 
-        pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
-        return Image.open(io.BytesIO(pix.tobytes("png")))
+        st.success("✅ PDF Ready.")
+        return True
 
     except Exception as e:
-        return str(e)
+        st.error(f"Download error: {e}")
+        return False
 
-
-# ==========================================================
-# 3️⃣ VECTOR STORE LOADER
-# ==========================================================
+# ==============================
+# VECTOR STORE
+# ==============================
 
 @st.cache_resource
 def load_vectorstore():
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    vectorstore = PineconeVectorStore(
+    return PineconeVectorStore(
         index_name="lehninger-index",
         embedding=embeddings,
         pinecone_api_key=st.secrets["PINECONE_API_KEY"]
     )
-    return vectorstore
 
+# ==============================
+# VISUAL EXTRACTION
+# ==============================
 
-# ==========================================================
-# 4️⃣ VISUAL EXTRACTION FUNCTION
-# ==========================================================
+def extract_visual(page_num):
 
-def extract_smart_visuals(page_num, mode="Smart Crop"):
+    if not os.path.exists(PDF_PATH):
+        return "file_not_found"
+
     try:
-        if not os.path.exists(PDF_PATH):
-            return "file_not_found"
-
         doc = fitz.open(PDF_PATH)
-        idx = int(page_num) - 1
-        page = doc.load_page(idx)
-
-        if mode == "Smart Crop":
-            paths = page.get_drawings()
-            images = page.get_image_info()
-
-            bboxes = [p["rect"] for p in paths] + [i["bbox"] for i in images]
-
-            if bboxes:
-                v_rect = bboxes[0]
-                for b in bboxes[1:]:
-                    v_rect = v_rect | b
-                page.set_cropbox(v_rect + (-15, -15, 15, 15))
+        page = doc.load_page(int(page_num) - 1)
 
         pix = page.get_pixmap(matrix=fitz.Matrix(2.5, 2.5))
         return Image.open(io.BytesIO(pix.tobytes("png")))
@@ -96,101 +98,65 @@ def extract_smart_visuals(page_num, mode="Smart Crop"):
     except Exception as e:
         return str(e)
 
-
-# ==========================================================
-# 5️⃣ STREAMLIT PAGE SETUP
-# ==========================================================
-
-st.set_page_config(
-    page_title="Bio-Researcher AI | Yashwant Nama",
-    layout="wide",
-    page_icon="🧬"
-)
-
-# ==========================================================
-# 6️⃣ SIDEBAR
-# ==========================================================
+# ==============================
+# SIDEBAR
+# ==============================
 
 with st.sidebar:
     st.title("👨‍🔬 Researcher Info")
     st.markdown("""
     **Yashwant Nama**  
     PhD Applicant | Molecular Biology  
-
     Project: Multimodal RAG for Metabolic Research
     """)
     st.divider()
 
-    extraction_mode = st.radio(
-        "Visual Extraction Mode:",
-        ["Smart Crop", "Full Page View"]
-    )
-
-    st.divider()
-
-    # Debug section (remove later)
-    if st.checkbox("Show Debug Info"):
+    if st.checkbox("Debug PDF Status"):
         st.write("PDF Exists:", os.path.exists(PDF_PATH))
         if os.path.exists(PDF_PATH):
-            st.write("File Size (MB):", round(os.path.getsize(PDF_PATH)/1024**2, 2))
+            st.write("Size (MB):", round(os.path.getsize(PDF_PATH)/1024**2, 2))
 
-
-# ==========================================================
-# 7️⃣ MAIN UI
-# ==========================================================
+# ==============================
+# MAIN APP
+# ==============================
 
 st.title("🧬 Molecular Biology Research Assistant")
-st.caption("AI-powered knowledge retrieval from Lehninger Principles of Biochemistry")
 
-# Download PDF
 pdf_ready = download_pdf()
 
 if pdf_ready:
 
     docsearch = load_vectorstore()
 
-    query = st.text_input(
-        "Enter your research question:",
-        placeholder="e.g. Describe transferases"
-    )
+    query = st.text_input("Enter your research question:")
 
     if query:
-        with st.spinner("🔬 Searching metabolic database..."):
 
-            results = docsearch.similarity_search(query, k=3)
+        results = docsearch.similarity_search(query, k=3)
 
-            if not results:
-                st.warning("No matches found in vector index.")
+        for i, doc in enumerate(results):
 
-            for i, doc in enumerate(results):
+            page = int(float(doc.metadata.get("page", 0)))
 
-                raw_page = doc.metadata.get("page", 0)
-                clean_page = int(float(raw_page))
+            col1, col2 = st.columns([2,1])
 
-                col1, col2 = st.columns([1, 1])
+            with col1:
+                st.markdown(f"### Result {i+1} | Page {page}")
+                st.info(doc.page_content)
 
-                with col1:
-                    st.markdown(f"### Result {i+1} | Page {clean_page}")
-                    st.info(doc.page_content)
+            with col2:
+                if st.button(f"View Page {page}", key=f"btn_{i}"):
 
-                with col2:
-                    if st.button(f"🔍 Extract Visuals (P. {clean_page})", key=f"btn_{i}"):
+                    img = extract_visual(page)
 
-                        with st.spinner("Extracting diagrams..."):
-                            img = extract_smart_visuals(clean_page, extraction_mode)
+                    if isinstance(img, Image.Image):
+                        st.image(img, use_container_width=True)
+                    elif img == "file_not_found":
+                        st.error("PDF not found.")
+                    else:
+                        st.error(img)
 
-                            if isinstance(img, Image.Image):
-                                st.image(
-                                    img,
-                                    use_container_width=True,
-                                    caption=f"Source: Page {clean_page}"
-                                )
-                            elif img == "file_not_found":
-                                st.error("PDF file not found on server.")
-                            else:
-                                st.error(f"Extraction failed: {img}")
-
-                st.divider()
+            st.divider()
 
 else:
-    st.error("❌ PDF could not be loaded. Check Dropbox link.")
+    st.error("PDF could not be loaded.")

@@ -22,10 +22,8 @@ DROPBOX_URL = "https://dl.dropboxusercontent.com/scl/fi/wzbf5ra623k6ex3pt98gc/le
 
 @st.cache_data(show_spinner=False)
 def download_pdf():
-    """Downloads PDF from Dropbox safely and validates it."""
-    
+
     if os.path.exists(PDF_PATH):
-        # Validate existing file
         try:
             fitz.open(PDF_PATH)
             return True
@@ -33,18 +31,39 @@ def download_pdf():
             os.remove(PDF_PATH)
 
     try:
-        with st.spinner("📥 Downloading database from Dropbox..."):
-            
+        with st.spinner("📥 Downloading PDF from Dropbox..."):
+
             response = requests.get(
                 DROPBOX_URL,
                 headers={"User-Agent": "Mozilla/5.0"},
+                stream=True,
                 allow_redirects=True,
-                timeout=60
+                timeout=120
             )
 
             if response.status_code != 200:
-                st.error(f"Download failed (Status {response.status_code})")
+                st.error(f"Download failed: Status {response.status_code}")
                 return False
+
+            # Write in chunks (important for large PDFs)
+            with open(PDF_PATH, "wb") as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+
+            # Validate file
+            try:
+                fitz.open(PDF_PATH)
+                st.success("✅ PDF ready.")
+                return True
+            except:
+                os.remove(PDF_PATH)
+                st.error("Downloaded file is corrupted.")
+                return False
+
+    except Exception as e:
+        st.error(f"Download error: {e}")
+        return False
 
             # Validate PDF header
             if not response.content.startswith(b"%PDF"):

@@ -95,10 +95,13 @@ def extract_smart_visuals(page_num, pdf_path: str, mode="Smart Crop"):
             bboxes = [p["rect"] for p in paths] + [i["bbox"] for i in images]
 
             if bboxes:
-                visual_rect = bboxes[0]
-                for bbox in bboxes[1:]:
-                    visual_rect = visual_rect | bbox
-                page.set_cropbox(visual_rect + (-15, -15, 15, 15))
+                v_rect = bboxes[0]
+                for b in bboxes[1:]:
+                    v_rect = v_rect | b
+                # Ensure crop stays inside page
+                media = page.rect
+                safe_rect = v_rect & media  # intersection
+                page.set_cropbox(safe_rect)
 
         pix = page.get_pixmap(matrix=fitz.Matrix(2.5, 2.5))
         return Image.open(io.BytesIO(pix.tobytes("png")))

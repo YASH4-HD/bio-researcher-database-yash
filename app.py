@@ -1,41 +1,36 @@
 import streamlit as st
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_community.vectorstores import FAISS
 import os
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_pinecone import PineconeVectorStore
 
 st.set_page_config(page_title="Bio-Researcher AI", layout="wide")
 
 st.title("🧬 Molecular Biology Research Assistant")
-st.write("Querying: **Lehninger Principles of Biochemistry**")
+st.write("Querying: **Lehninger Principles of Biochemistry (Cloud Edition)**")
 
-# 1. Load the Index we just created
+# 1. Setup API Key (On Streamlit Cloud, we will use 'Secrets')
+PINECONE_API_KEY = st.secrets["PINECONE_API_KEY"]
+index_name = "lehninger-index"
+
+# 2. Connect to the Cloud Brain
 @st.cache_resource
-def load_vector_db():
+def load_pinecone():
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-    # Path to your index folder
-    index_path = "faiss_index"
-    
-    if os.path.exists(index_path):
-        db = FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
-        return db
-    else:
-        st.error("Index folder not found. Please run create_index.py first.")
-        return None
+    vectorstore = PineconeVectorStore(
+        index_name=index_name, 
+        embedding=embeddings, 
+        pinecone_api_key=PINECONE_API_KEY
+    )
+    return vectorstore
 
-db = load_vector_db()
+docsearch = load_pinecone()
 
-# 2. Setup the Search logic
-query = st.text_input("Enter your research question (e.g., 'What is the role of ATP synthase?'):")
+# 3. Search UI
+query = st.text_input("Enter your research question:")
 
-if query and db:
-    with st.spinner("Searching the textbook..."):
-        # We use similarity_search directly from the FAISS object
-        # This bypasses the need for the 'langchain.chains' module
-        docs = db.similarity_search(query, k=4)
-        
-        st.subheader(f"Top results for: {query}")
-        
-        for i, doc in enumerate(docs):
-            with st.expander(f"Source Snippet {i+1} (Page {doc.metadata.get('page', 'N/A')})"):
+if query:
+    with st.spinner("Searching Cloud Database..."):
+        results = docsearch.similarity_search(query, k=4)
+        for i, doc in enumerate(results):
+            with st.expander(f"Source {i+1} (Page {doc.metadata.get('page', 'N/A')})"):
                 st.write(doc.page_content)
-                st.caption(f"Metadata: {doc.metadata}")

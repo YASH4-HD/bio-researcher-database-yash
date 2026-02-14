@@ -1,7 +1,7 @@
 import io
 import os
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set, Tuple
 
 import pymupdf as fitz  # PyMuPDF
 import requests
@@ -25,8 +25,8 @@ DROPBOX_URL = (
 # 2️⃣ PDF DISCOVERY + DOWNLOAD + VISUAL EXTRACTION
 # ==========================================================
 
+
 def find_existing_pdf() -> Optional[str]:
-    """Return a readable local PDF path if one is already available."""
     priority = [UPLOADED_PDF_NAME, DEFAULT_PDF_NAME]
     for name in priority:
         if os.path.exists(name) and os.path.getsize(name) > 0:
@@ -40,7 +40,6 @@ def find_existing_pdf() -> Optional[str]:
 
 
 def download_pdf() -> Optional[str]:
-    """Download the source PDF and return the local path when successful."""
     existing = find_existing_pdf()
     if existing:
         return existing
@@ -60,7 +59,6 @@ def download_pdf() -> Optional[str]:
 
 
 def save_uploaded_pdf() -> Optional[str]:
-    """Persist uploaded PDF to disk and return path."""
     uploaded = st.session_state.get("uploaded_pdf")
     if not uploaded:
         return None
@@ -74,7 +72,6 @@ def save_uploaded_pdf() -> Optional[str]:
 
 
 def resolve_pdf_path() -> Optional[str]:
-    """Get an accessible PDF path for visual extraction."""
     uploaded_path = save_uploaded_pdf()
     if uploaded_path:
         return uploaded_path
@@ -86,14 +83,12 @@ def normalize_text(text: str) -> str:
 
 
 def page_visual_density(page) -> int:
-    """Simple signal for whether a page has figures/diagrams."""
     drawings = page.get_drawings()
     images = page.get_image_info()
     return len(drawings) + len(images)
 
 
 def search_image_pages(pdf_path: str, query: str, k: int = 6) -> List[Dict[str, object]]:
-    """Search pages that are most likely to contain visuals relevant to query text."""
     doc = fitz.open(pdf_path)
     query_norm = normalize_text(query)
     query_tokens = [token for token in query_norm.split() if len(token) > 3]
@@ -111,7 +106,6 @@ def search_image_pages(pdf_path: str, query: str, k: int = 6) -> List[Dict[str, 
 
         page_text = normalize_text(page.get_text("text"))
         overlap = sum(1 for token in set(query_tokens) if token in page_text)
-
         if overlap == 0:
             continue
 
@@ -161,6 +155,7 @@ def extract_smart_visuals(page_num, pdf_path: str, mode="Smart Crop"):
 # 3️⃣ VECTOR STORE LOADER
 # ==========================================================
 
+
 @st.cache_resource
 def load_vectorstore():
     from langchain_pinecone import PineconeVectorStore
@@ -175,11 +170,89 @@ def load_vectorstore():
 
 
 # ==========================================================
-# 4️⃣ UNIQUE FEATURE IDEATION HELPERS
+# 4️⃣ LEARNING ENGINES HELPERS
 # ==========================================================
 
 
+def genetic_circuit_outcome(lox1: str, lox2: str, has_promoter: bool, has_stop: bool) -> Tuple[str, str]:
+    if lox1 == lox2:
+        recomb = "Deletion between Lox sites"
+        expression = "ON" if has_promoter and not has_stop else "OFF"
+    else:
+        recomb = "Inversion between Lox sites"
+        expression = "Conditional/Orientation-dependent"
+    explanation = (
+        f"Recombination: **{recomb}**. Predicted expression: **{expression}**. "
+        "This is a deterministic rule-based prediction from site orientation + cassette context."
+    )
+    return recomb, explanation
 
+
+def parse_edges(edge_text: str) -> Tuple[Set[Tuple[str, str]], Set[Tuple[str, str]]]:
+    activations: Set[Tuple[str, str]] = set()
+    inhibitions: Set[Tuple[str, str]] = set()
+    for line in edge_text.splitlines():
+        s = line.strip().replace(" ", "")
+        if not s:
+            continue
+        if "->" in s:
+            a, b = s.split("->", 1)
+            activations.add((a, b))
+        elif "-|" in s:
+            a, b = s.split("-|", 1)
+            inhibitions.add((a, b))
+    return activations, inhibitions
+
+
+def run_pathway_simulation(nodes: List[str], active_nodes: Set[str], activations, inhibitions, steps: int = 5):
+    states = []
+    current = {n: (n in active_nodes) for n in nodes}
+    states.append(current.copy())
+
+    for _ in range(steps):
+        nxt = current.copy()
+        for node in nodes:
+            act_signal = any(current.get(src, False) for src, dst in activations if dst == node)
+            inh_signal = any(current.get(src, False) for src, dst in inhibitions if dst == node)
+            if inh_signal:
+                nxt[node] = False
+            elif act_signal:
+                nxt[node] = True
+        current = nxt
+        states.append(current.copy())
+    return states
+
+
+def pcr_expected_size(start: int, end: int) -> int:
+    return abs(end - start) + 1
+
+
+def michaelis_menten_curve(vmax: float, km: float):
+    x = [i / 10 for i in range(0, 101)]
+    y = [vmax * s / (km + s) if (km + s) != 0 else 0 for s in x]
+    return x, y
+
+
+def hardy_weinberg(p: float):
+    q = 1 - p
+    return p * p, 2 * p * q, q * q
+
+
+def logic_breakdown(question: str) -> List[str]:
+    q = question.lower()
+    steps = ["Identify domain and entities in the question."]
+
+    if any(k in q for k in ["pedigree", "inherit", "trait"]):
+        steps.append("Infer inheritance model (autosomal/recessive/dominant/X-linked).")
+    if any(k in q for k in ["pathway", "activate", "inhibit"]):
+        steps.append("Construct causal network and propagate activation/inhibition rules.")
+    if any(k in q for k in ["km", "vmax", "kinetics", "enzyme"]):
+        steps.append("Map symbols to equation, substitute values, and interpret curve-shift behavior.")
+    if any(k in q for k in ["pcr", "band", "western", "facs"]):
+        steps.append("Convert assay conditions into measurable outputs (band size/intensity/peak shift).")
+
+    steps.append("Generate final answer with assumptions + confidence note.")
+    return steps
 
 
 # ==========================================================
@@ -230,18 +303,13 @@ st.title("🧬 Molecular Biology Research Assistant")
 st.caption("AI-powered knowledge retrieval from Lehninger Principles of Biochemistry")
 
 pdf_path = resolve_pdf_path()
-
 if not pdf_path:
     st.warning(
         "⚠️ Diagram extraction PDF is missing. You can still query text results, "
         "but to extract visuals please upload a PDF in the sidebar."
     )
 
-text_tab, image_tab, engines_tab = st.tabs([
-    "🔎 Text Research",
-    "🖼️ Image Explorer",
-    "🧠 Learning Engines",
-])
+text_tab, image_tab, engines_tab = st.tabs(["🔎 Text Research", "🖼️ Image Explorer", "🧠 Learning Engines"])
 
 with text_tab:
     st.subheader("Text Research")
@@ -255,7 +323,6 @@ with text_tab:
             except Exception as error:
                 st.error("Unable to connect to Pinecone vector store. Please verify dependencies and credentials.")
                 st.code(str(error))
-                st.info("If this is a package-rename issue, remove `pinecone-client` and install `pinecone`.")
                 results = []
 
             if not results:
@@ -273,12 +340,7 @@ with image_tab:
     st.subheader("Image Explorer (visual-first search)")
     st.caption("Search directly for pages with diagrams/figures, independent of text-result metadata.")
 
-    image_query = st.text_input(
-        "Search image content by topic:",
-        placeholder="e.g. CRISPR Cas9 mechanism",
-        key="image_query",
-    )
-
+    image_query = st.text_input("Search image content by topic:", placeholder="e.g. CRISPR Cas9 mechanism", key="image_query")
     max_hits = st.slider("Number of image pages to return", min_value=1, max_value=12, value=6)
 
     if st.button("Search Image Pages", key="image_search_btn"):
@@ -295,24 +357,18 @@ with image_tab:
 
             for idx, match in enumerate(matches):
                 page_num = int(match["page"])
-                score = match["score"]
-                density = match["visual_density"]
 
                 col1, col2 = st.columns([1, 1])
                 with col1:
                     st.markdown(f"### Visual Match {idx + 1} | Page {page_num}")
-                    st.markdown(f"- Match score: **{score}**")
-                    st.markdown(f"- Visual density: **{density}**")
+                    st.markdown(f"- Match score: **{match['score']}**")
+                    st.markdown(f"- Visual density: **{match['visual_density']}**")
                     st.info(match["snippet"] or "No preview text available for this page.")
 
                 with col2:
                     img = extract_smart_visuals(page_num, pdf_path, extraction_mode)
                     if isinstance(img, Image.Image):
-                        st.image(
-                            img,
-                            use_container_width=True,
-                            caption=f"Image Explorer source page: {page_num}",
-                        )
+                        st.image(img, use_container_width=True, caption=f"Image Explorer source page: {page_num}")
                     elif img == "file_not_found":
                         st.error("PDF file not found. Re-upload PDF from sidebar.")
                     else:
@@ -321,34 +377,127 @@ with image_tab:
                 st.divider()
 
 with engines_tab:
-    st.subheader("Learning Engines for Biology Students")
-    st.caption("Dedicated tab with rule-based/problem-solving engines for Part-C style questions.")
+    st.subheader("Learning Engines for Practical Skills")
+    st.caption("Five dedicated tool-tabs for genetics, signaling, experiments, equations, and reasoning.")
 
-    st.markdown("### 1) Genetic Circuit Engine")
-    st.markdown("**Covers:** Cre-Lox, Hfr, Pedigrees, Operons")
-    st.markdown("- **Input:** User selects Lox sites, promoters, or alleles.")
-    st.markdown("- **Logic:** Apply deterministic rule operations (e.g., same-direction Lox sites => deletion).")
-    st.markdown("- **Value:** One rule module can solve many classical genetics and molecular-biology transformations.")
+    genetic_tab, pathway_tab, experiment_tab, equation_tab, logic_tab = st.tabs(
+        [
+            "1️⃣ Genetic Circuit",
+            "2️⃣ Pathway Simulator",
+            "3️⃣ Experimental Predictor",
+            "4️⃣ Equation Solver",
+            "5️⃣ Logic-Inference",
+        ]
+    )
 
-    st.markdown("### 2) Pathway Simulator")
-    st.markdown("**Covers:** Cell signaling, immunology, biochemistry")
-    st.markdown("- **Tool:** Node-link pathway builder.")
-    st.markdown("- **Logic:** Student adds protein nodes and activation/inhibition edges; simulator computes downstream effect.")
-    st.markdown("- **Value:** Strong for Part-C causal questions like 'remove A, what happens to B/C?'.")
+    with genetic_tab:
+        st.markdown("### Genetic Circuit Engine")
+        lox1 = st.selectbox("Lox Site 1 orientation", ["same", "reverse"], key="lox1")
+        lox2 = st.selectbox("Lox Site 2 orientation", ["same", "reverse"], key="lox2")
+        has_promoter = st.checkbox("Promoter present", value=True)
+        has_stop = st.checkbox("STOP cassette present", value=False)
+        if st.button("Run Genetic Circuit", key="run_genetic"):
+            recomb, msg = genetic_circuit_outcome(lox1, lox2, has_promoter, has_stop)
+            st.success(msg)
+            st.write(f"Recommended interpretation for exam answer: **{recomb}** + effect on gene expression.")
 
-    st.markdown("### 3) Experimental Result Predictor")
-    st.markdown("**Covers:** Western blots, FACS, PCR, sequencing")
-    st.markdown("- **Tool:** Virtual bench.")
-    st.markdown("- **Input:** Molecular weights, markers, or assay settings.")
-    st.markdown("- **Output:** Generated synthetic plots/blots to reason about expected outcomes.")
+    with pathway_tab:
+        st.markdown("### Pathway Simulator")
+        nodes_text = st.text_input("Nodes (comma separated)", "A,B,C,D", key="nodes_text")
+        edge_text = st.text_area(
+            "Edges (one per line: A->B for activation, A-|B for inhibition)",
+            "A->B\nB-|C\nA->D",
+            key="edge_text",
+            height=130,
+        )
+        active_text = st.text_input("Initially active nodes (comma separated)", "A", key="active_nodes")
+        steps = st.slider("Simulation steps", min_value=1, max_value=10, value=4)
 
-    st.markdown("### 4) Equation Solver + Grapher")
-    st.markdown("**Covers:** Enzyme kinetics, population genetics, thermodynamics")
-    st.markdown("- **Tool:** Formula sandbox with live graphing.")
-    st.markdown("- **Input:** Parameters like Vmax, Km, p², 2pq, q².")
-    st.markdown("- **Value:** Interactive parameter shifts help students understand equations, not just compute values.")
+        if st.button("Simulate Pathway", key="run_pathway"):
+            nodes = [n.strip() for n in nodes_text.split(",") if n.strip()]
+            activations, inhibitions = parse_edges(edge_text)
+            active_nodes = {n.strip() for n in active_text.split(",") if n.strip()}
+            states = run_pathway_simulation(nodes, active_nodes, activations, inhibitions, steps)
 
-    st.markdown("### 5) Logic-Inference Chatbot (Master Integration)")
-    st.markdown("- **How it works:** Use syllabus + textbook RAG context.")
-    st.markdown("- **Action:** Break answers into step-by-step logic, not only final results.")
-    st.markdown("- **Value:** Unifies retrieval with reasoning for complex exam-style questions.")
+            st.write("**State evolution:**")
+            for i, state in enumerate(states):
+                on_nodes = [n for n, v in state.items() if v]
+                st.write(f"Step {i}: {' , '.join(on_nodes) if on_nodes else 'No active nodes'}")
+
+    with experiment_tab:
+        st.markdown("### Experimental Result Predictor")
+        assay = st.selectbox("Assay type", ["PCR", "Western Blot", "FACS"]) 
+
+        if assay == "PCR":
+            start = st.number_input("Forward primer start", min_value=1, value=120)
+            end = st.number_input("Reverse primer end", min_value=1, value=780)
+            if st.button("Predict PCR Product"):
+                size = pcr_expected_size(int(start), int(end))
+                st.success(f"Expected amplicon size: **{size} bp**")
+
+        elif assay == "Western Blot":
+            proteins = st.text_input("Protein bands in kDa (comma separated)", "42,55,110")
+            if st.button("Generate Synthetic Blot Profile"):
+                vals = [float(x.strip()) for x in proteins.split(",") if x.strip()]
+                chart_data = {"kDa": vals, "Intensity": [1.0 - (i * 0.15) for i in range(len(vals))]}
+                st.write("Predicted band intensities")
+                st.bar_chart(chart_data, x="kDa", y="Intensity")
+
+        else:
+            marker1 = st.number_input("Control median fluorescence", min_value=0.0, value=120.0)
+            marker2 = st.number_input("Treated median fluorescence", min_value=0.0, value=220.0)
+            if st.button("Predict FACS Shift"):
+                delta = marker2 - marker1
+                st.success(f"Predicted fluorescence shift: **{delta:.2f} units**")
+                st.line_chart({"control": [marker1] * 20, "treated": [marker2] * 20})
+
+    with equation_tab:
+        st.markdown("### Equation Solver + Grapher")
+        eq_type = st.selectbox("Equation model", ["Michaelis-Menten", "Hardy-Weinberg", "Gibbs Free Energy"])
+
+        if eq_type == "Michaelis-Menten":
+            vmax = st.number_input("Vmax", min_value=0.01, value=2.0)
+            km = st.number_input("Km", min_value=0.01, value=1.0)
+            if st.button("Plot Kinetics"):
+                x, y = michaelis_menten_curve(vmax, km)
+                st.line_chart({"[S]": x, "v": y}, x="[S]", y="v")
+                st.info("Interpretation: lower Km shifts curve left (higher affinity).")
+
+        elif eq_type == "Hardy-Weinberg":
+            p = st.slider("Allele frequency p", min_value=0.0, max_value=1.0, value=0.6)
+            if st.button("Compute Genotype Frequencies"):
+                p2, two_pq, q2 = hardy_weinberg(p)
+                st.write(f"p² = {p2:.3f}, 2pq = {two_pq:.3f}, q² = {q2:.3f}")
+                st.bar_chart({"frequency": [p2, two_pq, q2]}, x=None, y="frequency")
+
+        else:
+            delta_h = st.number_input("ΔH (kJ/mol)", value=-40.0)
+            temp_k = st.number_input("Temperature (K)", min_value=1.0, value=298.0)
+            delta_s = st.number_input("ΔS (kJ/mol·K)", value=-0.1)
+            if st.button("Solve ΔG"):
+                delta_g = delta_h - (temp_k * delta_s)
+                spontaneity = "Spontaneous" if delta_g < 0 else "Non-spontaneous"
+                st.success(f"ΔG = {delta_g:.3f} kJ/mol → **{spontaneity}**")
+
+    with logic_tab:
+        st.markdown("### Logic-Inference Chatbot (Step-by-Step)")
+        q = st.text_area("Paste a complex Part-C style question", height=140)
+        if st.button("Generate Logic Steps"):
+            if not q.strip():
+                st.warning("Please enter a question.")
+            else:
+                steps = logic_breakdown(q)
+                st.write("**Reasoning plan:**")
+                for i, step in enumerate(steps, start=1):
+                    st.markdown(f"{i}. {step}")
+
+                if st.checkbox("Attach RAG evidence snippets"):
+                    try:
+                        docsearch = load_vectorstore()
+                        evidence = docsearch.similarity_search(q, k=2)
+                        st.write("**Supporting snippets:**")
+                        for item in evidence:
+                            st.info(item.page_content[:400])
+                    except Exception as error:
+                        st.error("Could not fetch RAG evidence.")
+                        st.code(str(error))

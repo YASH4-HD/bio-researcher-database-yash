@@ -1,0 +1,4 @@
+faiss_index/
+*.pdf
+__pycache__/
+.venv/

@@ -178,53 +178,8 @@ def load_vectorstore():
 # 4️⃣ UNIQUE FEATURE IDEATION HELPERS
 # ==========================================================
 
-def generate_unique_feature_additions(query: str) -> List[Dict[str, str]]:
-    lowered = (query or "").lower()
 
-    signals = {
-        "enzymes": any(keyword in lowered for keyword in ["enzyme", "transferase", "kinase", "hydrolase"]),
-        "pathways": any(keyword in lowered for keyword in ["pathway", "glycolysis", "cycle", "metabolism"]),
-        "disease": any(keyword in lowered for keyword in ["disease", "mutation", "cancer", "defect"]),
-        "lab": any(keyword in lowered for keyword in ["experiment", "protocol", "assay", "lab"]),
-    }
 
-    concepts = [
-        {
-            "name": "Mechanism Contrast Mode",
-            "uniqueness": "Compares competing biochemical mechanisms side-by-side from retrieved context.",
-            "value": "Helps researchers quickly spot agreement gaps and uncertain reaction steps.",
-            "prototype": "Add dual evidence panels with confidence bars based on chunk overlap.",
-        },
-        {
-            "name": "Pathway Perturbation Simulator",
-            "uniqueness": "Lets users apply in-silico perturbations (enzyme inhibition/overexpression) to conceptual pathway flow.",
-            "value": "Useful for forming stronger hypotheses before wet-lab work.",
-            "prototype": "Create editable pathway nodes and estimate downstream qualitative impact labels.",
-        },
-        {
-            "name": "Disease Mutation Lens",
-            "uniqueness": "Bridges core biochemistry passages to likely mutation-sensitive pathway points.",
-            "value": "Improves translational relevance for clinical or biotech-focused questions.",
-            "prototype": "Tag retrieval results with mutation-risk annotations and likely phenotype categories.",
-        },
-        {
-            "name": "Experiment Starter Builder",
-            "uniqueness": "Auto-drafts a minimal experiment plan from retrieved evidence and user goal.",
-            "value": "Speeds up proposal drafting and improves reproducibility.",
-            "prototype": "Generate sections for objective, controls, readout, and failure modes.",
-        },
-    ]
-
-    if signals["pathways"]:
-        concepts[1]["value"] += " Especially strong for metabolism/pathway questions."
-    if signals["disease"]:
-        concepts[2]["value"] += " Prioritizes medically relevant hypotheses."
-    if signals["lab"]:
-        concepts[3]["prototype"] += " Include time/cost estimate sliders for lab planning."
-    if signals["enzymes"]:
-        concepts[0]["prototype"] += " Highlight catalytic-site specific evidence snippets."
-
-    return concepts
 
 
 # ==========================================================
@@ -282,10 +237,10 @@ if not pdf_path:
         "but to extract visuals please upload a PDF in the sidebar."
     )
 
-text_tab, image_tab, ideas_tab = st.tabs([
+text_tab, image_tab, engines_tab = st.tabs([
     "🔎 Text Research",
     "🖼️ Image Explorer",
-    "🚀 Unique Feature Additions",
+    "🧠 Learning Engines",
 ])
 
 with text_tab:
@@ -365,18 +320,35 @@ with image_tab:
 
                 st.divider()
 
-with ideas_tab:
-    st.subheader("Unique Feature Additions Explorer")
-    ideas_query = st.text_input(
-        "Enter a topic to brainstorm new capabilities:",
-        placeholder="e.g. pathway mutation analysis",
-        key="ideas_query",
-    )
+with engines_tab:
+    st.subheader("Learning Engines for Biology Students")
+    st.caption("Dedicated tab with rule-based/problem-solving engines for Part-C style questions.")
 
-    if st.button("Generate Unique Feature Additions", key="ideas_btn"):
-        for concept in generate_unique_feature_additions(ideas_query):
-            st.markdown(f"### {concept['name']}")
-            st.markdown(f"- **Why it is unique:** {concept['uniqueness']}")
-            st.markdown(f"- **Research value:** {concept['value']}")
-            st.markdown(f"- **Prototype direction:** {concept['prototype']}")
-            st.divider()
+    st.markdown("### 1) Genetic Circuit Engine")
+    st.markdown("**Covers:** Cre-Lox, Hfr, Pedigrees, Operons")
+    st.markdown("- **Input:** User selects Lox sites, promoters, or alleles.")
+    st.markdown("- **Logic:** Apply deterministic rule operations (e.g., same-direction Lox sites => deletion).")
+    st.markdown("- **Value:** One rule module can solve many classical genetics and molecular-biology transformations.")
+
+    st.markdown("### 2) Pathway Simulator")
+    st.markdown("**Covers:** Cell signaling, immunology, biochemistry")
+    st.markdown("- **Tool:** Node-link pathway builder.")
+    st.markdown("- **Logic:** Student adds protein nodes and activation/inhibition edges; simulator computes downstream effect.")
+    st.markdown("- **Value:** Strong for Part-C causal questions like 'remove A, what happens to B/C?'.")
+
+    st.markdown("### 3) Experimental Result Predictor")
+    st.markdown("**Covers:** Western blots, FACS, PCR, sequencing")
+    st.markdown("- **Tool:** Virtual bench.")
+    st.markdown("- **Input:** Molecular weights, markers, or assay settings.")
+    st.markdown("- **Output:** Generated synthetic plots/blots to reason about expected outcomes.")
+
+    st.markdown("### 4) Equation Solver + Grapher")
+    st.markdown("**Covers:** Enzyme kinetics, population genetics, thermodynamics")
+    st.markdown("- **Tool:** Formula sandbox with live graphing.")
+    st.markdown("- **Input:** Parameters like Vmax, Km, p², 2pq, q².")
+    st.markdown("- **Value:** Interactive parameter shifts help students understand equations, not just compute values.")
+
+    st.markdown("### 5) Logic-Inference Chatbot (Master Integration)")
+    st.markdown("- **How it works:** Use syllabus + textbook RAG context.")
+    st.markdown("- **Action:** Break answers into step-by-step logic, not only final results.")
+    st.markdown("- **Value:** Unifies retrieval with reasoning for complex exam-style questions.")

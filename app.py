@@ -8,7 +8,6 @@ import requests
 import streamlit as st
 from PIL import Image
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_pinecone import PineconeVectorStore
 
 # ==========================================================
 # 1️⃣ CONFIGURATION
@@ -20,6 +19,8 @@ DROPBOX_URL = (
     "https://dl.dropboxusercontent.com/scl/fi/wzbf5ra623k6ex3pt98gc/"
     "lehninger.pdf?rlkey=fzauw5kna9tyyo2g336f8w5a0&dl=1"
 )
+
+
 # ==========================================================
 # 2️⃣ PDF DISCOVERY + DOWNLOAD + VISUAL EXTRACTION
 # ==========================================================
@@ -80,6 +81,77 @@ def resolve_pdf_path() -> Optional[str]:
     return download_pdf()
 
 
+
+
+def normalize_text(text: str) -> str:
+    return " ".join("".join(ch.lower() if ch.isalnum() else " " for ch in text).split())
+
+
+def resolve_visual_page(pdf_path: str, raw_page, result_text: str) -> int:
+    """Resolve the best visual page for a retrieval result using metadata + text matching."""
+    doc = fitz.open(pdf_path)
+    total_pages = len(doc)
+
+    try:
+        page_hint = int(float(raw_page))
+    except Exception:
+        page_hint = 1
+
+    # Handle both zero-based and one-based metadata conventions.
+    seed_indices = {page_hint, page_hint - 1}
+    valid_seed_indices = [idx for idx in seed_indices if 0 <= idx < total_pages]
+    if not valid_seed_indices:
+        valid_seed_indices = [0]
+
+    snippet = normalize_text(result_text)[:260]
+    snippet_tokens = [token for token in snippet.split() if len(token) > 4][:24]
+
+    best_index = valid_seed_indices[0]
+    best_score = -1
+
+    # Search around hinted pages first; fallback over full PDF only if weak match.
+    candidates = set()
+    for seed in valid_seed_indices:
+        for offset in range(-25, 26):
+            idx = seed + offset
+            if 0 <= idx < total_pages:
+                candidates.add(idx)
+
+    def score_page(idx: int) -> float:
+        page_text = normalize_text(doc.load_page(idx).get_text("text"))
+        if not page_text:
+            return 0
+
+        if snippet and snippet[:120] in page_text:
+            return 1000 + len(snippet[:120])
+
+        overlap = sum(1 for token in snippet_tokens if token in page_text)
+        proximity_bonus = max(0, 25 - min(abs(idx - seed) for seed in valid_seed_indices))
+        return overlap * 10 + proximity_bonus
+
+    for idx in sorted(candidates):
+        score = score_page(idx)
+        if score > best_score:
+            best_score = score
+            best_index = idx
+
+    # If still weak, do a wider search in coarse steps then refine around best.
+    if best_score < 20 and total_pages > 0:
+        coarse = list(range(0, total_pages, 20))
+        for idx in coarse:
+            score = score_page(idx)
+            if score > best_score:
+                best_score = score
+                best_index = idx
+
+        for idx in range(max(0, best_index - 20), min(total_pages, best_index + 21)):
+            score = score_page(idx)
+            if score > best_score:
+                best_score = score
+                best_index = idx
+
+    return best_index + 1
+
 def extract_smart_visuals(page_num, pdf_path: str, mode="Smart Crop"):
     try:
         if not pdf_path or not os.path.exists(pdf_path):
@@ -95,13 +167,10 @@ def extract_smart_visuals(page_num, pdf_path: str, mode="Smart Crop"):
             bboxes = [p["rect"] for p in paths] + [i["bbox"] for i in images]
 
             if bboxes:
-                v_rect = bboxes[0]
-                for b in bboxes[1:]:
-                    v_rect = v_rect | b
-                # Ensure crop stays inside page
-                media = page.rect
-                safe_rect = v_rect & media  # intersection
-                page.set_cropbox(safe_rect)
+                visual_rect = bboxes[0]
+                for bbox in bboxes[1:]:
+                    visual_rect = visual_rect | bbox
+                page.set_cropbox(visual_rect + (-15, -15, 15, 15))
 
         pix = page.get_pixmap(matrix=fitz.Matrix(2.5, 2.5))
         return Image.open(io.BytesIO(pix.tobytes("png")))
@@ -116,6 +185,8 @@ def extract_smart_visuals(page_num, pdf_path: str, mode="Smart Crop"):
 
 @st.cache_resource
 def load_vectorstore():
+    from langchain_pinecone import PineconeVectorStore
+
     embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
     vectorstore = PineconeVectorStore(
         index_name="lehninger-index",
@@ -248,8 +319,14 @@ with st.expander("🚀 Unique Feature Additions Explorer", expanded=bool(query))
 
 if query:
     with st.spinner("🔬 Searching metabolic database..."):
-        docsearch = load_vectorstore()
-        results = docsearch.similarity_search(query, k=3)
+        try:
+            docsearch = load_vectorstore()
+            results = docsearch.similarity_search(query, k=3)
+        except Exception as error:
+            st.error("Unable to connect to Pinecone vector store. Please verify dependencies and credentials.")
+            st.code(str(error))
+            st.info("If this is a package-rename issue, remove `pinecone-client` and install `pinecone`.")
+            results = []
 
         if not results:
             st.warning("No matches found in vector index.")
@@ -269,14 +346,18 @@ if query:
                     if not pdf_path:
                         st.error("PDF unavailable. Upload Lehninger PDF in sidebar to extract visuals.")
                     else:
+                        with st.spinner("Finding the page that matches retrieved text..."):
+                            matched_page = resolve_visual_page(pdf_path, raw_page, doc.page_content)
+
                         with st.spinner("Extracting diagrams..."):
-                            img = extract_smart_visuals(clean_page, pdf_path, extraction_mode)
+                            img = extract_smart_visuals(matched_page, pdf_path, extraction_mode)
 
                             if isinstance(img, Image.Image):
+                                st.caption(f"Visual matched to PDF page {matched_page} (retrieval metadata page: {raw_page}).")
                                 st.image(
                                     img,
                                     use_container_width=True,
-                                    caption=f"Source: Page {clean_page}",
+                                    caption=f"Source: Page {matched_page}",
                                 )
                             elif img == "file_not_found":
                                 st.error("PDF file not found. Re-upload PDF from sidebar.")

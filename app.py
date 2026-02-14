@@ -81,76 +81,54 @@ def resolve_pdf_path() -> Optional[str]:
     return download_pdf()
 
 
-
-
 def normalize_text(text: str) -> str:
     return " ".join("".join(ch.lower() if ch.isalnum() else " " for ch in text).split())
 
 
-def resolve_visual_page(pdf_path: str, raw_page, result_text: str) -> int:
-    """Resolve the best visual page for a retrieval result using metadata + text matching."""
+def page_visual_density(page) -> int:
+    """Simple signal for whether a page has figures/diagrams."""
+    drawings = page.get_drawings()
+    images = page.get_image_info()
+    return len(drawings) + len(images)
+
+
+def search_image_pages(pdf_path: str, query: str, k: int = 6) -> List[Dict[str, object]]:
+    """Search pages that are most likely to contain visuals relevant to query text."""
     doc = fitz.open(pdf_path)
-    total_pages = len(doc)
+    query_norm = normalize_text(query)
+    query_tokens = [token for token in query_norm.split() if len(token) > 3]
 
-    try:
-        page_hint = int(float(raw_page))
-    except Exception:
-        page_hint = 1
+    if not query_tokens:
+        return []
 
-    # Handle both zero-based and one-based metadata conventions.
-    seed_indices = {page_hint, page_hint - 1}
-    valid_seed_indices = [idx for idx in seed_indices if 0 <= idx < total_pages]
-    if not valid_seed_indices:
-        valid_seed_indices = [0]
+    candidates: List[Dict[str, object]] = []
 
-    snippet = normalize_text(result_text)[:260]
-    snippet_tokens = [token for token in snippet.split() if len(token) > 4][:24]
+    for idx in range(len(doc)):
+        page = doc.load_page(idx)
+        density = page_visual_density(page)
+        if density == 0:
+            continue
 
-    best_index = valid_seed_indices[0]
-    best_score = -1
+        page_text = normalize_text(page.get_text("text"))
+        overlap = sum(1 for token in set(query_tokens) if token in page_text)
 
-    # Search around hinted pages first; fallback over full PDF only if weak match.
-    candidates = set()
-    for seed in valid_seed_indices:
-        for offset in range(-25, 26):
-            idx = seed + offset
-            if 0 <= idx < total_pages:
-                candidates.add(idx)
+        if overlap == 0:
+            continue
 
-    def score_page(idx: int) -> float:
-        page_text = normalize_text(doc.load_page(idx).get_text("text"))
-        if not page_text:
-            return 0
+        score = (overlap * 10) + min(density, 10)
+        snippet = page.get_text("text")[:350].strip().replace("\n", " ")
+        candidates.append(
+            {
+                "page": idx + 1,
+                "score": score,
+                "visual_density": density,
+                "snippet": snippet,
+            }
+        )
 
-        if snippet and snippet[:120] in page_text:
-            return 1000 + len(snippet[:120])
+    candidates.sort(key=lambda item: (item["score"], item["visual_density"]), reverse=True)
+    return candidates[:k]
 
-        overlap = sum(1 for token in snippet_tokens if token in page_text)
-        proximity_bonus = max(0, 25 - min(abs(idx - seed) for seed in valid_seed_indices))
-        return overlap * 10 + proximity_bonus
-
-    for idx in sorted(candidates):
-        score = score_page(idx)
-        if score > best_score:
-            best_score = score
-            best_index = idx
-
-    # If still weak, do a wider search in coarse steps then refine around best.
-    if best_score < 20 and total_pages > 0:
-        coarse = list(range(0, total_pages, 20))
-        for idx in coarse:
-            score = score_page(idx)
-            if score > best_score:
-                best_score = score
-                best_index = idx
-
-        for idx in range(max(0, best_index - 20), min(total_pages, best_index + 21)):
-            score = score_page(idx)
-            if score > best_score:
-                best_score = score
-                best_index = idx
-
-    return best_index + 1
 
 def extract_smart_visuals(page_num, pdf_path: str, mode="Smart Crop"):
     try:
@@ -201,7 +179,6 @@ def load_vectorstore():
 # ==========================================================
 
 def generate_unique_feature_additions(query: str) -> List[Dict[str, str]]:
-    """Generate practical, unique product-feature ideas contextualized to the query."""
     lowered = (query or "").lower()
 
     signals = {
@@ -305,63 +282,101 @@ if not pdf_path:
         "but to extract visuals please upload a PDF in the sidebar."
     )
 
-query = st.text_input("Enter your research question:", placeholder="e.g. Describe transferases")
+text_tab, image_tab, ideas_tab = st.tabs([
+    "🔎 Text Research",
+    "🖼️ Image Explorer",
+    "🚀 Unique Feature Additions",
+])
 
-with st.expander("🚀 Unique Feature Additions Explorer", expanded=bool(query)):
-    st.write("Explore high-impact product ideas tailored to your active research question.")
-    if st.button("Generate Unique Feature Additions"):
-        for concept in generate_unique_feature_additions(query):
+with text_tab:
+    st.subheader("Text Research")
+    query = st.text_input("Enter your research question:", placeholder="e.g. Describe transferases", key="text_query")
+
+    if query:
+        with st.spinner("🔬 Searching metabolic database..."):
+            try:
+                docsearch = load_vectorstore()
+                results = docsearch.similarity_search(query, k=3)
+            except Exception as error:
+                st.error("Unable to connect to Pinecone vector store. Please verify dependencies and credentials.")
+                st.code(str(error))
+                st.info("If this is a package-rename issue, remove `pinecone-client` and install `pinecone`.")
+                results = []
+
+            if not results:
+                st.warning("No matches found in vector index.")
+
+            for index, doc in enumerate(results):
+                raw_page = doc.metadata.get("page", 0)
+                clean_page = int(float(raw_page))
+                st.markdown(f"### Result {index + 1} | Metadata Page {clean_page}")
+                st.info(doc.page_content)
+                st.caption("Visual extraction is handled in the **Image Explorer** tab to avoid text/visual mismatch.")
+                st.divider()
+
+with image_tab:
+    st.subheader("Image Explorer (visual-first search)")
+    st.caption("Search directly for pages with diagrams/figures, independent of text-result metadata.")
+
+    image_query = st.text_input(
+        "Search image content by topic:",
+        placeholder="e.g. CRISPR Cas9 mechanism",
+        key="image_query",
+    )
+
+    max_hits = st.slider("Number of image pages to return", min_value=1, max_value=12, value=6)
+
+    if st.button("Search Image Pages", key="image_search_btn"):
+        if not pdf_path:
+            st.error("PDF unavailable. Upload Lehninger PDF in sidebar to search image pages.")
+        elif not image_query.strip():
+            st.warning("Please enter a search topic for image pages.")
+        else:
+            with st.spinner("Scanning PDF pages with visuals..."):
+                matches = search_image_pages(pdf_path, image_query, k=max_hits)
+
+            if not matches:
+                st.warning("No visual-heavy pages matched your query. Try broader keywords.")
+
+            for idx, match in enumerate(matches):
+                page_num = int(match["page"])
+                score = match["score"]
+                density = match["visual_density"]
+
+                col1, col2 = st.columns([1, 1])
+                with col1:
+                    st.markdown(f"### Visual Match {idx + 1} | Page {page_num}")
+                    st.markdown(f"- Match score: **{score}**")
+                    st.markdown(f"- Visual density: **{density}**")
+                    st.info(match["snippet"] or "No preview text available for this page.")
+
+                with col2:
+                    img = extract_smart_visuals(page_num, pdf_path, extraction_mode)
+                    if isinstance(img, Image.Image):
+                        st.image(
+                            img,
+                            use_container_width=True,
+                            caption=f"Image Explorer source page: {page_num}",
+                        )
+                    elif img == "file_not_found":
+                        st.error("PDF file not found. Re-upload PDF from sidebar.")
+                    else:
+                        st.error(f"Extraction failed: {img}")
+
+                st.divider()
+
+with ideas_tab:
+    st.subheader("Unique Feature Additions Explorer")
+    ideas_query = st.text_input(
+        "Enter a topic to brainstorm new capabilities:",
+        placeholder="e.g. pathway mutation analysis",
+        key="ideas_query",
+    )
+
+    if st.button("Generate Unique Feature Additions", key="ideas_btn"):
+        for concept in generate_unique_feature_additions(ideas_query):
             st.markdown(f"### {concept['name']}")
             st.markdown(f"- **Why it is unique:** {concept['uniqueness']}")
             st.markdown(f"- **Research value:** {concept['value']}")
             st.markdown(f"- **Prototype direction:** {concept['prototype']}")
-            st.divider()
-
-if query:
-    with st.spinner("🔬 Searching metabolic database..."):
-        try:
-            docsearch = load_vectorstore()
-            results = docsearch.similarity_search(query, k=3)
-        except Exception as error:
-            st.error("Unable to connect to Pinecone vector store. Please verify dependencies and credentials.")
-            st.code(str(error))
-            st.info("If this is a package-rename issue, remove `pinecone-client` and install `pinecone`.")
-            results = []
-
-        if not results:
-            st.warning("No matches found in vector index.")
-
-        for index, doc in enumerate(results):
-            raw_page = doc.metadata.get("page", 0)
-            clean_page = int(float(raw_page))
-
-            col1, col2 = st.columns([1, 1])
-
-            with col1:
-                st.markdown(f"### Result {index + 1} | Page {clean_page}")
-                st.info(doc.page_content)
-
-            with col2:
-                if st.button(f"🔍 Extract Visuals (P. {clean_page})", key=f"btn_{index}"):
-                    if not pdf_path:
-                        st.error("PDF unavailable. Upload Lehninger PDF in sidebar to extract visuals.")
-                    else:
-                        with st.spinner("Finding the page that matches retrieved text..."):
-                            matched_page = resolve_visual_page(pdf_path, raw_page, doc.page_content)
-
-                        with st.spinner("Extracting diagrams..."):
-                            img = extract_smart_visuals(matched_page, pdf_path, extraction_mode)
-
-                            if isinstance(img, Image.Image):
-                                st.caption(f"Visual matched to PDF page {matched_page} (retrieval metadata page: {raw_page}).")
-                                st.image(
-                                    img,
-                                    use_container_width=True,
-                                    caption=f"Source: Page {matched_page}",
-                                )
-                            elif img == "file_not_found":
-                                st.error("PDF file not found. Re-upload PDF from sidebar.")
-                            else:
-                                st.error(f"Extraction failed: {img}")
-
             st.divider()

@@ -8,3 +8,5 @@ faiss-cpu
 langchain-pinecone
 pinecone-client
 sentence-transformers
+fitz
+pymupdf

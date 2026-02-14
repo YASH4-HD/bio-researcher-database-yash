@@ -5,7 +5,18 @@ from PIL import Image
 import io
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_pinecone import PineconeVectorStore
+import urllib.request
 
+PDF_PATH = "lehninger.pdf"
+
+@st.cache_data
+def download_pdf():
+    if not os.path.exists(PDF_PATH):
+        url = "https://drive.google.com/file/d/1QvDN1bAnWYg2DC5ZyZOBbKdYvoNNFqvM/view?usp=sharing"
+        with st.spinner("Downloading database for the first time..."):
+            urllib.request.urlretrieve(url, PDF_PATH)
+
+download_pdf()
 # --- 1. Page Configuration ---
 st.set_page_config(
     page_title="Bio-Researcher AI | Yashwant Nama", 

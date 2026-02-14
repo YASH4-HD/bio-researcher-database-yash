@@ -1,8 +1,9 @@
 import io
 import os
-from typing import Dict, List
+from pathlib import Path
+from typing import Dict, List, Optional
 
-import fitz  # PyMuPDF
+import pymupdf as fitz  # PyMuPDF
 import requests
 import streamlit as st
 from PIL import Image
@@ -13,38 +14,78 @@ from langchain_pinecone import PineconeVectorStore
 # 1️⃣ CONFIGURATION
 # ==========================================================
 
-PDF_PATH = "lehninger.pdf"
+DEFAULT_PDF_NAME = "lehninger.pdf"
+UPLOADED_PDF_NAME = "uploaded_lehninger.pdf"
 DROPBOX_URL = (
     "https://dl.dropboxusercontent.com/scl/fi/wzbf5ra623k6ex3pt98gc/"
     "lehninger.pdf?rlkey=fzauw5kna9tyyo2g336f8w5a0&dl=1"
 )
 # ==========================================================
-# 2️⃣ PDF DOWNLOADER + VISUAL EXTRACTION
+# 2️⃣ PDF DISCOVERY + DOWNLOAD + VISUAL EXTRACTION
 # ==========================================================
 
-def download_pdf() -> bool:
-    """Download the source PDF once and keep it locally for visual extraction."""
-    if os.path.exists(PDF_PATH) and os.path.getsize(PDF_PATH) > 0:
-        return True
+def find_existing_pdf() -> Optional[str]:
+    """Return a readable local PDF path if one is already available."""
+    priority = [UPLOADED_PDF_NAME, DEFAULT_PDF_NAME]
+    for name in priority:
+        if os.path.exists(name) and os.path.getsize(name) > 0:
+            return name
+
+    for candidate in Path(".").glob("*.pdf"):
+        if candidate.is_file() and candidate.stat().st_size > 0:
+            return str(candidate)
+
+    return None
+
+
+def download_pdf() -> Optional[str]:
+    """Download the source PDF and return the local path when successful."""
+    existing = find_existing_pdf()
+    if existing:
+        return existing
 
     try:
-        response = requests.get(DROPBOX_URL, timeout=30)
+        response = requests.get(DROPBOX_URL, timeout=45)
         response.raise_for_status()
 
-        with open(PDF_PATH, "wb") as f:
-            f.write(response.content)
+        with open(DEFAULT_PDF_NAME, "wb") as file_obj:
+            file_obj.write(response.content)
 
-        return os.path.exists(PDF_PATH) and os.path.getsize(PDF_PATH) > 0
+        if os.path.exists(DEFAULT_PDF_NAME) and os.path.getsize(DEFAULT_PDF_NAME) > 0:
+            return DEFAULT_PDF_NAME
+        return None
     except Exception:
-        return False
+        return None
 
 
-def extract_smart_visuals(page_num, mode="Smart Crop"):
+def save_uploaded_pdf() -> Optional[str]:
+    """Persist uploaded PDF to disk and return path."""
+    uploaded = st.session_state.get("uploaded_pdf")
+    if not uploaded:
+        return None
+
+    with open(UPLOADED_PDF_NAME, "wb") as file_obj:
+        file_obj.write(uploaded.getbuffer())
+
+    if os.path.exists(UPLOADED_PDF_NAME) and os.path.getsize(UPLOADED_PDF_NAME) > 0:
+        return UPLOADED_PDF_NAME
+    return None
+
+
+def resolve_pdf_path() -> Optional[str]:
+    """Get an accessible PDF path for visual extraction."""
+    uploaded_path = save_uploaded_pdf()
+    if uploaded_path:
+        return uploaded_path
+    return download_pdf()
+
+
+def extract_smart_visuals(page_num, pdf_path: str, mode="Smart Crop"):
     try:
-        if not os.path.exists(PDF_PATH):
+        if not pdf_path or not os.path.exists(pdf_path):
             return "file_not_found"
 
-        doc = fitz.open(PDF_PATH)
+        doc = fitz.open(pdf_path)
         idx = int(page_num) - 1
         page = doc.load_page(idx)
 
@@ -62,8 +103,8 @@ def extract_smart_visuals(page_num, mode="Smart Crop"):
         pix = page.get_pixmap(matrix=fitz.Matrix(2.5, 2.5))
         return Image.open(io.BytesIO(pix.tobytes("png")))
 
-    except Exception as e:
-        return str(e)
+    except Exception as error:
+        return str(error)
 
 
 # ==========================================================
@@ -90,10 +131,10 @@ def generate_unique_feature_additions(query: str) -> List[Dict[str, str]]:
     lowered = (query or "").lower()
 
     signals = {
-        "enzymes": any(k in lowered for k in ["enzyme", "transferase", "kinase", "hydrolase"]),
-        "pathways": any(k in lowered for k in ["pathway", "glycolysis", "cycle", "metabolism"]),
-        "disease": any(k in lowered for k in ["disease", "mutation", "cancer", "defect"]),
-        "lab": any(k in lowered for k in ["experiment", "protocol", "assay", "lab"]),
+        "enzymes": any(keyword in lowered for keyword in ["enzyme", "transferase", "kinase", "hydrolase"]),
+        "pathways": any(keyword in lowered for keyword in ["pathway", "glycolysis", "cycle", "metabolism"]),
+        "disease": any(keyword in lowered for keyword in ["disease", "mutation", "cancer", "defect"]),
+        "lab": any(keyword in lowered for keyword in ["experiment", "protocol", "assay", "lab"]),
     }
 
     concepts = [
@@ -160,11 +201,19 @@ with st.sidebar:
 
     extraction_mode = st.radio("Visual Extraction Mode:", ["Smart Crop", "Full Page View"])
 
+    st.file_uploader(
+        "Optional: Upload Lehninger PDF for diagram extraction",
+        type=["pdf"],
+        key="uploaded_pdf",
+        help="Use this if auto-download fails or if you want to use a local copy.",
+    )
+
     st.divider()
     if st.checkbox("Show Debug Info"):
-        st.write("PDF Exists:", os.path.exists(PDF_PATH))
-        if os.path.exists(PDF_PATH):
-            st.write("File Size (MB):", round(os.path.getsize(PDF_PATH) / 1024**2, 2))
+        detected_pdf = find_existing_pdf()
+        st.write("Detected PDF:", detected_pdf or "None")
+        if detected_pdf:
+            st.write("File Size (MB):", round(os.path.getsize(detected_pdf) / 1024**2, 2))
 
 
 # ==========================================================
@@ -174,45 +223,51 @@ with st.sidebar:
 st.title("🧬 Molecular Biology Research Assistant")
 st.caption("AI-powered knowledge retrieval from Lehninger Principles of Biochemistry")
 
-pdf_ready = download_pdf()
+pdf_path = resolve_pdf_path()
 
-if pdf_ready:
-    query = st.text_input("Enter your research question:", placeholder="e.g. Describe transferases")
+if not pdf_path:
+    st.warning(
+        "⚠️ Diagram extraction PDF is missing. You can still query text results, "
+        "but to extract visuals please upload a PDF in the sidebar."
+    )
 
-    with st.expander("🚀 Unique Feature Additions Explorer", expanded=bool(query)):
-        st.write(
-            "Explore high-impact product ideas tailored to your active research question."
-        )
-        if st.button("Generate Unique Feature Additions"):
-            for concept in generate_unique_feature_additions(query):
-                st.markdown(f"### {concept['name']}")
-                st.markdown(f"- **Why it is unique:** {concept['uniqueness']}")
-                st.markdown(f"- **Research value:** {concept['value']}")
-                st.markdown(f"- **Prototype direction:** {concept['prototype']}")
-                st.divider()
+query = st.text_input("Enter your research question:", placeholder="e.g. Describe transferases")
 
-    if query:
-        with st.spinner("🔬 Searching metabolic database..."):
-            docsearch = load_vectorstore()
-            results = docsearch.similarity_search(query, k=3)
+with st.expander("🚀 Unique Feature Additions Explorer", expanded=bool(query)):
+    st.write("Explore high-impact product ideas tailored to your active research question.")
+    if st.button("Generate Unique Feature Additions"):
+        for concept in generate_unique_feature_additions(query):
+            st.markdown(f"### {concept['name']}")
+            st.markdown(f"- **Why it is unique:** {concept['uniqueness']}")
+            st.markdown(f"- **Research value:** {concept['value']}")
+            st.markdown(f"- **Prototype direction:** {concept['prototype']}")
+            st.divider()
 
-            if not results:
-                st.warning("No matches found in vector index.")
+if query:
+    with st.spinner("🔬 Searching metabolic database..."):
+        docsearch = load_vectorstore()
+        results = docsearch.similarity_search(query, k=3)
 
-            for i, doc in enumerate(results):
-                raw_page = doc.metadata.get("page", 0)
-                clean_page = int(float(raw_page))
+        if not results:
+            st.warning("No matches found in vector index.")
 
-                col1, col2 = st.columns([1, 1])
+        for index, doc in enumerate(results):
+            raw_page = doc.metadata.get("page", 0)
+            clean_page = int(float(raw_page))
 
-                with col1:
-                    st.markdown(f"### Result {i + 1} | Page {clean_page}")
-                    st.info(doc.page_content)
+            col1, col2 = st.columns([1, 1])
 
-                with col2:
-                    if st.button(f"🔍 Extract Visuals (P. {clean_page})", key=f"btn_{i}"):
+            with col1:
+                st.markdown(f"### Result {index + 1} | Page {clean_page}")
+                st.info(doc.page_content)
+
+            with col2:
+                if st.button(f"🔍 Extract Visuals (P. {clean_page})", key=f"btn_{index}"):
+                    if not pdf_path:
+                        st.error("PDF unavailable. Upload Lehninger PDF in sidebar to extract visuals.")
+                    else:
                         with st.spinner("Extracting diagrams..."):
-                            img = extract_smart_visuals(clean_page, extraction_mode)
+                            img = extract_smart_visuals(clean_page, pdf_path, extraction_mode)
 
                             if isinstance(img, Image.Image):
                                 st.image(
@@ -221,11 +276,8 @@ if pdf_ready:
                                     caption=f"Source: Page {clean_page}",
                                 )
                             elif img == "file_not_found":
-                                st.error("PDF file not found on server.")
+                                st.error("PDF file not found. Re-upload PDF from sidebar.")
                             else:
                                 st.error(f"Extraction failed: {img}")
 
-                st.divider()
-
-else:
-    st.error("❌ PDF could not be loaded. Check Dropbox link.")
+            st.divider()

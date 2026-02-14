@@ -10,3 +10,4 @@ pinecone-client
 sentence-transformers
 fitz
 pymupdf
+pillow

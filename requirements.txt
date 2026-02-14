@@ -5,3 +5,6 @@ langchain-huggingface
 pypdf
 sentence-transformers
 faiss-cpu
+langchain-pinecone
+pinecone-client
+sentence-transformers

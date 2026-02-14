@@ -1,103 +1,67 @@
 import streamlit as st
 import os
-import fitz
+import fitz  # PyMuPDF
 from PIL import Image
 import io
 import requests
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_pinecone import PineconeVectorStore
 
-# ==============================
-# 1. CONFIGURATION
-# ==============================
+# ==========================================================
+# 1️⃣ CONFIGURATION
+# ==========================================================
 
 PDF_PATH = "lehninger.pdf"
 
-# 🔴 Replace with converted dropbox direct link
-DROPBOX_URL = "https://dl.dropboxusercontent.com/scl/fi/wzbf5ra623k6ex3pt98gc/lehninger.pdf?rlkey=fzauw5kna9tyyo2g336f8w5a0
-"
+# ✅ CORRECT Dropbox Direct Link (dl=1 required)
+DROPBOX_URL = "https://dl.dropboxusercontent.com/scl/fi/wzbf5ra623k6ex3pt98gc/lehninger.pdf?rlkey=fzauw5kna9tyyo2g336f8w5a0&dl=1"
 
-# ==============================
-# 2. SAFE DROPBOX DOWNLOADER
-# ==============================
+# ==========================================================
+# 2️⃣ DROPBOX SAFE DOWNLOADER
+# ==========================================================
 
 @st.cache_data(show_spinner=False)
 def download_pdf():
-    """Force-download PDF and verify integrity."""
-    
+    """Download and verify PDF from Dropbox."""
     try:
+        # If file already exists and looks valid, skip download
         if os.path.exists(PDF_PATH):
-            # Check file size to ensure it's real
-            if os.path.getsize(PDF_PATH) > 5_000_000:  # >5MB
+            if os.path.getsize(PDF_PATH) > 5_000_000:  # >5MB sanity check
                 return True
             else:
-                os.remove(PDF_PATH)  # Corrupted file, delete it
+                os.remove(PDF_PATH)
 
-        st.info("📥 Downloading Lehninger PDF...")
+        st.info("📥 Downloading Lehninger PDF from Dropbox...")
 
-        with urllib.request.urlopen(DROPBOX_URL) as response:
-            data = response.read()
+        response = requests.get(DROPBOX_URL, stream=True)
 
-            # Check if Dropbox returned HTML instead of PDF
-            if b"<html" in data[:500]:
-                st.error("Dropbox returned HTML instead of PDF. Check link.")
-                return False
+        if response.status_code != 200:
+            st.error(f"Download failed. Status code: {response.status_code}")
+            return False
 
-            with open(PDF_PATH, "wb") as f:
-                f.write(data)
+        with open(PDF_PATH, "wb") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
 
-        # Final verification
-        if os.path.exists(PDF_PATH) and os.path.getsize(PDF_PATH) > 5_000_000:
-            st.success("✅ PDF successfully downloaded and verified.")
+        # Validate PDF integrity
+        try:
+            fitz.open(PDF_PATH)
+            st.success("✅ PDF downloaded and verified.")
             return True
-        else:
-            st.error("Downloaded file is invalid.")
+        except:
+            os.remove(PDF_PATH)
+            st.error("Downloaded file is corrupted.")
             return False
 
     except Exception as e:
         st.error(f"Download error: {e}")
         return False
 
-            # Write in chunks (important for large PDFs)
-            with open(PDF_PATH, "wb") as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        f.write(chunk)
 
-            # Validate file
-            try:
-                fitz.open(PDF_PATH)
-                st.success("✅ PDF ready.")
-                return True
-            except:
-                os.remove(PDF_PATH)
-                st.error("Downloaded file is corrupted.")
-                return False
-
-    except Exception as e:
-        st.error(f"Download error: {e}")
-        return False
-
-            # Validate PDF header
-            if not response.content.startswith(b"%PDF"):
-                st.error("Downloaded file is not a valid PDF. Check Dropbox link.")
-                return False
-
-            with open(PDF_PATH, "wb") as f:
-                f.write(response.content)
-
-            st.success("✅ Database ready!")
-
-            return True
-
-    except Exception as e:
-        st.error(f"Download error: {e}")
-        return False
-
-
-# ==============================
-# 3. VECTOR STORE LOADER
-# ==============================
+# ==========================================================
+# 3️⃣ VECTOR STORE LOADER
+# ==========================================================
 
 @st.cache_resource
 def load_vectorstore():
@@ -110,12 +74,11 @@ def load_vectorstore():
     return vectorstore
 
 
-# ==============================
-# 4. VISUAL EXTRACTION
-# ==============================
+# ==========================================================
+# 4️⃣ VISUAL EXTRACTION FUNCTION
+# ==========================================================
 
 def extract_smart_visuals(page_num, mode="Smart Crop"):
-
     try:
         if not os.path.exists(PDF_PATH):
             return "file_not_found"
@@ -134,7 +97,6 @@ def extract_smart_visuals(page_num, mode="Smart Crop"):
                 v_rect = bboxes[0]
                 for b in bboxes[1:]:
                     v_rect = v_rect | b
-
                 page.set_cropbox(v_rect + (-15, -15, 15, 15))
 
         pix = page.get_pixmap(matrix=fitz.Matrix(2.5, 2.5))
@@ -144,9 +106,9 @@ def extract_smart_visuals(page_num, mode="Smart Crop"):
         return str(e)
 
 
-# ==============================
-# 5. STREAMLIT UI
-# ==============================
+# ==========================================================
+# 5️⃣ STREAMLIT PAGE SETUP
+# ==========================================================
 
 st.set_page_config(
     page_title="Bio-Researcher AI | Yashwant Nama",
@@ -154,46 +116,60 @@ st.set_page_config(
     page_icon="🧬"
 )
 
-# Sidebar
+# ==========================================================
+# 6️⃣ SIDEBAR
+# ==========================================================
+
 with st.sidebar:
     st.title("👨‍🔬 Researcher Info")
     st.markdown("""
     **Yashwant Nama**  
     PhD Applicant | Molecular Biology  
-    
+
     Project: Multimodal RAG for Metabolic Research
     """)
     st.divider()
+
     extraction_mode = st.radio(
         "Visual Extraction Mode:",
         ["Smart Crop", "Full Page View"]
     )
 
-# Main Title
+    st.divider()
+
+    # Debug section (remove later)
+    if st.checkbox("Show Debug Info"):
+        st.write("PDF Exists:", os.path.exists(PDF_PATH))
+        if os.path.exists(PDF_PATH):
+            st.write("File Size (MB):", round(os.path.getsize(PDF_PATH)/1024**2, 2))
+
+
+# ==========================================================
+# 7️⃣ MAIN UI
+# ==========================================================
+
 st.title("🧬 Molecular Biology Research Assistant")
-st.caption("Quantitative AI-Powered Research Interface")
+st.caption("AI-powered knowledge retrieval from Lehninger Principles of Biochemistry")
 
-# ==============================
-# 6. APP LOGIC
-# ==============================
-
+# Download PDF
 pdf_ready = download_pdf()
 
 if pdf_ready:
 
     docsearch = load_vectorstore()
+
     query = st.text_input(
         "Enter your research question:",
         placeholder="e.g. Describe transferases"
     )
 
     if query:
-        with st.spinner("Analyzing molecular pathways..."):
+        with st.spinner("🔬 Searching metabolic database..."):
 
             results = docsearch.similarity_search(query, k=3)
 
             if not results:
-                st.warning("No matches found.")
+                st.warning("No matches found in vector index.")
 
             for i, doc in enumerate(results):
 
@@ -213,13 +189,17 @@ if pdf_ready:
                             img = extract_smart_visuals(clean_page, extraction_mode)
 
                             if isinstance(img, Image.Image):
-                                st.image(img, use_container_width=True)
+                                st.image(
+                                    img,
+                                    use_container_width=True,
+                                    caption=f"Source: Page {clean_page}"
+                                )
                             elif img == "file_not_found":
-                                st.error("PDF not found.")
+                                st.error("PDF file not found on server.")
                             else:
                                 st.error(f"Extraction failed: {img}")
 
                 st.divider()
 
 else:
-    st.error("PDF could not be loaded. Check Dropbox link.")
+    st.error("❌ PDF could not be loaded. Check Dropbox link.")

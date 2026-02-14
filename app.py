@@ -12,11 +12,23 @@ PDF_PATH = "lehninger.pdf"
 @st.cache_data
 def download_pdf():
     if not os.path.exists(PDF_PATH):
-        url = "https://drive.google.com/file/d/1QvDN1bAnWYg2DC5ZyZOBbKdYvoNNFqvM/view?usp=sharing"
-        with st.spinner("Downloading database for the first time..."):
-            urllib.request.urlretrieve(url, PDF_PATH)
+        # This is the converted direct link from your ID
+        file_id = "1QvDN1bAnWYg2DC5ZyZOBbKdYvoNNFqvM"
+        direct_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+        
+        try:
+            with st.spinner("Downloading Lehninger PDF (this may take a minute)..."):
+                # Using a User-Agent header helps prevent Google from blocking the script
+                opener = urllib.request.build_opener()
+                opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+                urllib.request.install_opener(opener)
+                urllib.request.urlretrieve(direct_url, PDF_PATH)
+            st.success("Database downloaded successfully!")
+        except Exception as e:
+            st.error(f"Download failed: {e}")
 
 download_pdf()
+
 # --- 1. Page Configuration ---
 st.set_page_config(
     page_title="Bio-Researcher AI | Yashwant Nama", 

@@ -1260,7 +1260,7 @@ if df is not None and query:
                             col2.metric("Isoelectric Point", f"{analysed_seq.isoelectric_point():.2f}")
                             col3.metric("Aromaticity", f"{analysed_seq.aromaticity():.2f}")
                             st.markdown("---")
-                             c1, c2 = st.columns(2)
+                            c1, c2 = st.columns(2)
                             with c1:
                                 st.write(f"**Sequence Length:** {len(cleaned)} residues")
                              with c2:

@@ -1371,25 +1371,25 @@ with col_left:
             # Handle the line breaks from your Excel Alt+Enter
             st.write(raw_points.replace("_x000D_", "\n"))
 
-                    
-                    # Inside Tab 10...
-                    if st.button("Add to Research Report", icon="➕", key="kb_report_btn"):
-                        if 'report_list' not in st.session_state:
-                            st.session_state['report_list'] = []
-                        
-                        # Get the data from the current row
-                        topic_to_add = kb_row.get("Topic", "Untitled")
-                        notes_to_add = kb_row.get("Explanation", "No notes available.")
-                    
-                        # Prevent duplicates
-                        if topic_to_add not in [item['Topic'] for item in st.session_state['report_list']]:
-                            st.session_state['report_list'].append({
-                                "Topic": topic_to_add,
-                                "Notes": notes_to_add
-                            })
-                            st.toast(f"Added {topic_to_add} to report!", icon="✅")
-                        else:
-                            st.warning("Topic already in report.")
+    
+    # Inside Tab 10...
+    if st.button("Add to Research Report", icon="➕", key="kb_report_btn"):
+        if 'report_list' not in st.session_state:
+            st.session_state['report_list'] = []
+        
+        # Get the data from the current row
+        topic_to_add = kb_row.get("Topic", "Untitled")
+        notes_to_add = kb_row.get("Explanation", "No notes available.")
+    
+        # Prevent duplicates
+        if topic_to_add not in [item['Topic'] for item in st.session_state['report_list']]:
+            st.session_state['report_list'].append({
+                "Topic": topic_to_add,
+                "Notes": notes_to_add
+            })
+            st.toast(f"Added {topic_to_add} to report!", icon="✅")
+        else:
+            st.warning("Topic already in report.")
 
 
                 with col_right:

@@ -1271,6 +1271,9 @@ if df is not None and query:
                     target_url = f"https://www.ncbi.nlm.nih.gov/structure/?term={quote_plus(portal_query)}"
                 elif portal_choice == "AlphaFold DB":
                     target_url = f"https://alphafold.ebi.ac.uk/search/text/{quote_plus(portal_query)}"
+                else:
+                     # Handles any stale/unknown selectbox state without crashing.
+                    st.warning("Unknown database selection. Falling back to a web search.")
 
                 st.link_button(f"🚀 Open {portal_choice} in New Tab", target_url, use_container_width=True)
                 

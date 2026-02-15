@@ -686,75 +686,73 @@ if df is not None and query:
             st.caption(f"Snippet: {str(results.iloc[0].get('text_content', ''))[:220]}...")
 
         with tab2:
-            st.subheader("Discovery Lab: Enhanced Exploration")
+            st.subheader("🧠 Discovery Lab: Enhanced Exploration")
+            
+            # 1. Semantic Query Expansion
             if "Semantic Query Expansion" in feature_flags:
                 st.markdown("#### 🔎 Semantic Query Expansion")
                 suggestions = generate_query_suggestions(query, df.get("text_content", pd.Series(dtype=str)))
                 if suggestions:
                     st.write(" • " + " • ".join(suggestions[:10]))
-                    st.caption("Filtered for noun/adjective-like biological terms and OCR noise removal.")
                 else:
                     st.info("No related suggestions found yet.")
 
-            concepts_df = sanitize_concept_df(compute_concept_connections(results))
-            
+            # 2. Visual Knowledge Graph & Download
             if "Visual Knowledge Graph" in feature_flags:
                 st.markdown("#### 🕸️ Visual Knowledge Graph")
+                concepts_df = sanitize_concept_df(compute_concept_connections(results))
                 
                 if concepts_df.empty:
-                    st.warning("⚠️ No concept connections found in the text for this term. Try a more common term like 'Glucose' or 'Protein'.")
+                    st.warning(f"⚠️ No connections found for '{query}'.")
                 else:
-                    # Create a simple, safe DOT string
+                    # Create the DOT string
                     dot = "graph G {\n"
-                    dot += "  layout=neato; overlap=false; splines=true; sep='+20'; esep='+10';\n"
+                    dot += "  layout=neato; overlap=false; splines=true; sep='+25';\n"
+                    dot += "  node [style=filled, fontname='Helvetica', fontsize=11];\n"
+                    dot += f'  "{query.upper()}" [shape=doublecircle, fillcolor="#FFD700", color="#DAA520", penwidth=3];\n'
                     
-                    # Add the main query node
-                    dot += f'  "{query}" [fillcolor="#FFD700", shape=doublecircle];\n'
-                    
-                    # Add edges with smart biological coloring
                     for _, row in concepts_df.head(15).iterrows():
                         a, b = str(row["term_a"]), str(row["term_b"])
                         count = int(row["co_occurrences"])
-                        
-                        # Logic to color based on biological category
                         def get_color(term):
-                            term_l = term.lower()
-                            if any(x in term_l for x in ["kinase", "dehydrogenase", "ase", "enzyme"]):
-                                return "#C1E1C1" # Green for Enzymes
-                            if any(x in term_l for x in ["glucose", "pyruvate", "atp", "phosphate", "acid"]):
-                                return "#FFD580" # Orange for Metabolites
-                            return "#d1ecff"     # Blue for others
-
-                    # Apply colors to nodes
-                    dot += f'  "{a}" [fillcolor="{get_color(a)}"];\n'
-                    dot += f'  "{b}" [fillcolor="{get_color(b)}"];\n'
-                    
-                    # Create the connection line
-                    dot += f'  "{a}" -- "{b}" [label="{count}", penwidth={min(count/10, 4)}];\n'
-
-                    
-                    
+                            t = term.lower()
+                            if any(x in t for x in ["ase", "kinase", "enzyme"]): return "#C1E1C1"
+                            if any(x in t for x in ["glucose", "atp", "acid", "phosphate"]): return "#FFD580"
+                            return "#d1ecff"
+                        dot += f'  "{a}" [fillcolor="{get_color(a)}"];\n'
+                        dot += f'  "{b}" [fillcolor="{get_color(b)}"];\n'
+                        dot += f'  "{a}" -- "{b}" [label="{count}", penwidth={min(count/5, 5)}];\n'
                     dot += "}"
                     
-                    # Display the graph
-                    st.graphviz_chart(dot)
+                    # Render Graph
+                    st.graphviz_chart(dot, use_container_width=True)
+
+                    # --- DOWNLOAD SECTION ---
+                    fig_data = concepts_df.head(10).copy()
+                    fig_data["edge"] = fig_data["term_a"] + " ↔ " + fig_data["term_b"]
                     
-                    # Display the raw data table below it for verification
-                    with st.expander("View Raw Connection Data"):
-                        st.dataframe(concepts_df)
+                    # This generates the PNG for download
+                    fig_buf = render_bar_figure(fig_data, "edge", "co_occurrences", f"Knowledge Graph Edge Weights: {query}")
+                    
+                    col_dl, col_raw = st.columns([1, 1])
+                    with col_dl:
+                        if fig_buf:
+                            st.download_button(
+                                label="💾 Download Graph Weights (PNG)",
+                                data=fig_buf,
+                                file_name=f"{query}_knowledge_graph.png",
+                                mime="image/png",
+                                use_container_width=True
+                            )
+                    with col_raw:
+                        with st.expander("📊 View Raw Data"):
+                            st.dataframe(concepts_df, use_container_width=True)
 
-
-                st.caption("Edge weight = term co-occurrence frequency within indexed textbook content.")
-
-                fig_data = concepts_df.head(10).copy()
-                fig_data["edge"] = fig_data["term_a"] + "↔" + fig_data["term_b"]
-                fig_buf = render_bar_figure(fig_data, "edge", "co_occurrences", "Knowledge Graph Edge Weights")
-                if fig_buf:
-                    st.download_button("Download Figure (Knowledge Graph PNG)", data=fig_buf, file_name=f"{query}_knowledge_graph.png", mime="image/png")
-
+            # 3. Metabolic Map Link
             if "Metabolic Map Link" in feature_flags and is_metabolite_like(query):
                 st.markdown("#### 🧭 Metabolic Map Shortcut")
-                st.link_button("Open KEGG pathway search", f"https://www.kegg.jp/kegg-bin/search_pathway_text?map=&keyword={quote_plus(query)}&mode=1")
+                st.link_button(f"Open KEGG: {query}", f"https://www.kegg.jp/kegg-bin/search_pathway_text?map=&keyword={quote_plus(query)}&mode=1")
+
 
             if "Semantic Bridge" in feature_flags:
                 st.markdown("#### 🌉 Semantic Analysis: Textbook ↔ Literature Bridge")

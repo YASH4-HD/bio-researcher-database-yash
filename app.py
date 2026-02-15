@@ -1240,7 +1240,13 @@ if df is not None and query:
 
                 # URL Logic
                 if portal_choice == "RCSB PDB":
-                    target_url = f"https://www.rcsb.org/structure/{portal_query}" if len(portal_query) == 4 else f"https://www.rcsb.org/search?query={quote_plus(portal_query)}"
+                    # Check if it looks like a PDB ID (4 characters, alphanumeric)
+                    if len(portal_query) == 4 and portal_query.isalnum():
+                        target_url = f"https://www.rcsb.org/structure/{portal_query}"
+                    else:
+                        # Otherwise, use the general SEARCH URL (this won't crash)
+                        target_url = f"https://www.rcsb.org/search?query={quote_plus(portal_query)}"
+                
                 elif portal_choice == "UniProt":
                     target_url = f"https://www.uniprot.org/uniprotkb?query={quote_plus(portal_query)}"
                 elif portal_choice == "NCBI Gene":

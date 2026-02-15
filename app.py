@@ -13,6 +13,7 @@ from urllib.parse import quote_plus
 import pandas as pd
 import streamlit as st
 from Bio import Entrez
+import matplotlib.pyplot as plt
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(layout="wide", page_title="BioVisual Search Engine")
@@ -175,12 +176,15 @@ def render_sidebar_status():
     st.sidebar.markdown("### 🔎 Suggested Searches")
     st.sidebar.caption("PCR • CRISPR • Glycolysis • DNA Repair • T-cell Metabolism")
 
-def render_bar_figure(df: pd.DataFrame, x_col: str, y_col: str, title: str):
-    try:
-        import matplotlib.pyplot as plt
-    except Exception:
-        return None
 
+def get_secret_value(secret_name: str) -> str:
+    try:
+        secret_value = st.secrets.get(secret_name, "")
+    except Exception:
+        return ""
+    return str(secret_value).strip()
+
+def render_bar_figure(df: pd.DataFrame, x_col: str, y_col: str, title: str):
     fig, ax = plt.subplots(figsize=(8, 4))
     ax.bar(df[x_col], df[y_col], color="#4c78a8")
     ax.set_title(title)
@@ -804,12 +808,7 @@ if df is not None and query:
 
             provider = st.selectbox("Provider", ["Gemini", "Groq", "OpenAI", "HuggingFace"])
             api_key = st.text_input("Enter your API key", type="password", help="Use a Groq/OpenAI/HuggingFace key. This field is masked and only kept in-session.")
-            secret_key = ""
-            if provider == "Gemini":
-                try:
-                    secret_key = st.secrets["GEMINI_API_KEY"]
-                except Exception:
-                    secret_key = ""
+            secret_key = get_secret_value("GEMINI_API_KEY") if provider == "Gemini" else ""
             effective_api_key = api_key.strip() or secret_key
             if provider == "Gemini" and secret_key and not api_key.strip():
                 st.caption("Using `GEMINI_API_KEY` from Streamlit secrets.")

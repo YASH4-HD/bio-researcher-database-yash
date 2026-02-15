@@ -368,6 +368,9 @@ def validate_api_key(provider: str, api_key: str):
             return False, "Groq key looks too short. Please paste the full key from Groq Console."
     if provider == "OpenAI" and not key.startswith("sk-"):
         return False, "OpenAI keys should start with `sk-`."
+    if provider == "Gemini":
+        if not key.startswith("AIza"):
+            return False, "Gemini API keys usually start with `AIza`."
     return True, ""
 
 
@@ -390,10 +393,17 @@ def call_ai_analyst(provider: str, api_key: str, prompt: str, model_name: str):
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.3,
         }
-    else:
+    elif provider == "HuggingFace":
         url = "https://api-inference.huggingface.co/models/tiiuae/falcon-7b-instruct"
         headers["Authorization"] = f"Bearer {api_key}"
         payload = {"inputs": prompt, "parameters": {"max_new_tokens": 220, "temperature": 0.2}}
+    else:  # Gemini
+        model = model_name or "gemini-1.5-flash"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.3},
+        }
 
     req = request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
     try:
@@ -401,6 +411,13 @@ def call_ai_analyst(provider: str, api_key: str, prompt: str, model_name: str):
             data = json.loads(resp.read().decode("utf-8"))
         if provider in {"OpenAI", "Groq"}:
             return data.get("choices", [{}])[0].get("message", {}).get("content", "No response")
+        if provider == "Gemini":
+            candidates = data.get("candidates", []) if isinstance(data, dict) else []
+            if candidates:
+                parts = candidates[0].get("content", {}).get("parts", [])
+                if parts and isinstance(parts[0], dict):
+                    return parts[0].get("text", "No response")
+            return str(data)
         if isinstance(data, list) and data and isinstance(data[0], dict):
             return data[0].get("generated_text", "No response")
         return str(data)
@@ -666,10 +683,17 @@ if df is not None and query:
             st.subheader("Bio-Analyst Assistant")
             st.caption("Use API key in-session only. No key is stored by this app.")
 
-            provider = st.selectbox("Provider", ["Groq", "OpenAI", "HuggingFace"])
+            provider = st.selectbox("Provider", ["Gemini", "Groq", "OpenAI", "HuggingFace"])
             api_key = st.text_input("Enter your API key", type="password", help="Use a Groq/OpenAI/HuggingFace key. This field is masked and only kept in-session.")
 
-            if provider == "Groq":
+            if provider == "Gemini":
+                model_name = st.selectbox(
+                    "Gemini model",
+                    ["gemini-1.5-flash", "gemini-1.5-pro"],
+                    index=0,
+                    help="Use gemini-1.5-flash for fast responses and strong compatibility.",
+                )
+            elif provider == "Groq":
                 model_name = st.selectbox(
                     "Groq model",
                     [
@@ -754,6 +778,8 @@ if df is not None and query:
                         st.write(response)
                         if provider == "Groq" and ("403" in str(response) or "1010" in str(response)):
                             st.info("Tip: this usually indicates invalid/revoked key. Regenerate key in Groq Console and retry with `llama-3.1-8b-instant`.")
+                        if provider == "Gemini" and ("400/403" in str(response) or "Gemini request failed" in str(response)):
+                            st.info("Tip: enable Generative Language API for your Google project and verify Gemini key permissions.")
 
 
     else:

@@ -1596,29 +1596,35 @@ with st.sidebar:
     st.sidebar.markdown("### 💡 Research Tip")
     st.sidebar.info("Focus on molecular interactions and regulatory nodes relevant to CSIR-NET Part C.")
     # --- SIDEBAR RESEARCH LOG ---
-    with st.sidebar:
+       with st.sidebar:
         st.divider()
-        st.subheader("📝 Research Summary Log")
-        st.caption("Auto-collects findings for your lab notebook.")
-        
-        # Create a summary string
-        summary_text = f"""# BioVisual Research Report
-        
-        ## 🧬 Target Analysis: {query}
-        - **Sequence Type:** {seq_type if 'seq_type' in locals() else 'N/A'}
-        - **Detected PDB ID:** {pdb_id_input if 'pdb_id_input' in locals() else 'N/A'}
-        
-        ## 🧪 Experimental Design
-        - **Primer:** {primer_seq if 'primer_seq' in locals() else 'N/A'}
-        - **Tm:** {tm if 'tm' in locals() else 'N/A'}°C | **GC:** {gc_content if 'gc_content' in locals() else 'N/A'}%
-        - **Experiment:** {st.session_state.get('exp_plan', 'No plan generated')}
-        """
-        
+        st.subheader("📝 Export Research")
+
+        # Formatting the decimals safely
+        tm_display = f"{tm:.2f}" if ('tm' in locals() and isinstance(tm, (int, float))) else "N/A"
+        gc_display = f"{gc_content:.2f}" if ('gc_content' in locals() and isinstance(gc_content, (int, float))) else "N/A"
+
+        # Creating the markdown content
+        summary_text = f"""# 🧬 BioVisual Research Report
+
+## 🔍 Target Analysis: {query if 'query' in locals() else 'N/A'}
+- **Sequence Type:** {seq_type if 'seq_type' in locals() else 'N/A'}
+- **Detected PDB ID:** {pdb_id_input if 'pdb_id_input' in locals() else 'N/A'}
+
+## 🧪 Experimental Design
+- **Primer:** `{primer_seq if 'primer_seq' in locals() else 'N/A'}`
+- **Melting Temp (Tm):** {tm_display} °C
+- **GC Content:** {gc_display}%
+- **Experiment Plan:** 
+{st.session_state.get('exp_plan', 'No plan generated')}
+"""
+
+        # The Download Button
         st.download_button(
-        label="📥 Download Research Report",
-        data=summary_text,
-        file_name=f"Research_Report_{query}.md",
-        mime="text/markdown",
-        use_container_width=True
+            label="Download .md File",
+            data=summary_text,
+            file_name="BioVisual_Research_Report.md",
+            mime="text/markdown"
         )
+
 

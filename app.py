@@ -167,19 +167,22 @@ with st.sidebar:
     # Title
     st.title("🛡️ Bio-Verify 2026")
 
-    # --- INDIA TIME (IST) ---
-try:
-    ist = pytz.timezone("Asia/Kolkata")
-    today_dt = datetime.datetime.now(ist)
-    today_date = today_dt.date()
-except Exception:
-    # Fallback if pytz fails
-    today_dt = datetime.now()
-    today_date = today_dt.date()
+     # --- INDIA TIME (IST) ---
+    try:
+        ist = pytz.timezone("Asia/Kolkata")
+        # If you used 'from datetime import datetime', use this:
+        today_dt = datetime.now(ist)
+        today_date = today_dt.date()
+    except Exception:
+        # Fallback if pytz fails
+        from datetime import date
+        today_date = date.today()
 
-    st.subheader(f"📅 {today_auto.upper()}")
-
+    # FIXED: Changed today_auto to today_date and fixed indentation
+    st.subheader(f"🗓️ {today_date.strftime('%d %b %Y')}")
+    
     st.divider()
+
 
     # --- EXAM DATES ---
     EXAMS = {

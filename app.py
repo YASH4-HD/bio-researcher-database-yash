@@ -1285,7 +1285,7 @@ if df is not None and query:
             
             st.divider() 
 
-                with tab10:
+        with tab10:
             st.subheader("📘 CSIR-NET / GATE Planner & Study Reader")
             
             # Use 'df' as the knowledge base

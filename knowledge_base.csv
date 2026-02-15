@@ -1,0 +1,24 @@
+﻿Topic,Section,Explanation,Image,Ten_Points
+Restriction Enzymes,4.6,Enzymes that cut DNA at specific palindromic sequences.,1.jpg,"Restriction enzymes are DNA-cutting enzymes that recognize and cleave specific nucleotide sequences called recognition sites.
+
+They are naturally found in bacteria as part of a defense system against invading foreign DNA (like bacteriophages).
+
+Most restriction enzymes recognize palindromic sequences (same reading 5′→3′ on both strands).
+
+They cut DNA by breaking phosphodiester bonds at or near the recognition site.
+
+Based on structure and function, they are classified into Type I, Type II, and Type III restriction enzymes.
+
+Type II restriction enzymes are most widely used in molecular biology because they cut at precise positions.
+
+DNA cleavage can produce sticky (cohesive) ends or blunt ends, depending on the enzyme.
+
+Restriction enzymes require specific conditions like optimal temperature, pH, and Mg²⁺ ions for activity.
+
+They are essential tools in recombinant DNA technology, gene cloning, and genetic engineering.
+
+Common examples include EcoRI, HindIII, BamHI, and PstI, widely used in laboratories."
+PCR Principles,4.1,Thermal cycling to amplify specific DNA targets using Taq,,
+Plasmids,4.12.1,Circular DNA used for cloning inserts smaller than 10kb.,,
+BACs,4.12.4,Bacterial Artificial Chromosomes for 100-300kb fragments.,,
+Transformation,4.13,Introducing foreign DNA into host cells via heat-shock.,,

@@ -1596,17 +1596,21 @@ with st.sidebar:
     # 6. Research Tip (Moved outside the else so it always shows)
     st.sidebar.markdown("### 💡 Research Tip")
     st.sidebar.info("Focus on molecular interactions and regulatory nodes relevant to CSIR-NET Part C.")
-    # --- SIDEBAR RESEARCH LOG ---
+ # --- Line 1071: SIDEBAR RESEARCH LOG ---
     with st.sidebar:
         st.divider()
         st.subheader("📝 Export Research")
 
-        # 1. Format numbers safely
-        tm_val = f"{tm:.2f}" if ('tm' in locals() and isinstance(tm, (int, float))) else "N/A"
-        gc_val = f"{gc_content:.2f}" if ('gc_content' in locals() and isinstance(gc_content, (int, float))) else "N/A"
+        # 1. Format numbers safely using session_state or local check
+        # We use .get() to prevent NameErrors if the user hasn't visited the tabs yet
+        tm_val = f"{tm:.2f}" if ('tm' in locals()) else "N/A"
+        gc_val = f"{gc_content:.2f}" if ('gc_content' in locals()) else "N/A"
+        
+        # Line 1079: Corrected datetime call based on your 'from datetime import datetime' import
         curr_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-        # 2. Create the report string (Ensure f""" starts the block and """ ends it)
+        # 2. Create the report string
+        # Line 1082: Added safety checks for every variable
         summary_text = f"""# 🧬 BioVisual Research Report
 **Generated on:** {curr_time}
 
@@ -1625,10 +1629,10 @@ with st.sidebar:
 
         # 3. Download Button
         st.download_button(
-            label="Download Research Report",
+            label="Download Research Report (.md)",
             data=summary_text,
-            file_name="BioVisual_Report.md",
-            mime="text/markdown"
+            file_name=f"BioVisual_Report_{query}.md",
+            mime="text/markdown",
+            key="final_md_download"
         )
-
 

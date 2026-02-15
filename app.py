@@ -221,7 +221,8 @@ with st.sidebar:
             </div>
         </div>
     """, unsafe_allow_html=True)
-    
+    st.sidebar.markdown("### 🔎 Suggested Searches")
+    st.sidebar.caption("PCR • CRISPR • Glycolysis • DNA Repair • T-cell Metabolism")
 
 
 def get_secret_value(secret_name: str) -> str:

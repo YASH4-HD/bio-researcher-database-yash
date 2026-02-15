@@ -1393,11 +1393,17 @@ if df is not None and query:
                     "Readouts: qPCR, western blot, and flux proxy (lactate/ATP).\n"
                     "Controls: non-targeting control + vehicle + baseline condition."
                 )
-            if st.session_state.get("exp_plan"):
+                        if st.session_state.get("exp_plan"):
                 st.success(st.session_state["exp_plan"])
 
-
+        # --- END OF TABS ---
+        
     else:
+        # This else belongs to "if not results.empty:"
         st.warning(f"No matches found for '{query}'.")
+        
     st.sidebar.markdown("### 💡 Research Tip")
     st.sidebar.info("Restriction enzymes work best at specific pH and temperature buffers.")
+
+# --- END OF FILE ---
+

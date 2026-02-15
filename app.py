@@ -1408,23 +1408,24 @@ if df is not None and query:
                     st.info(f"**Current Topic:** {kb_row.get('Topic', 'N/A')}")
                     
                     # --- DATA CLEANING STEP ---
-                    # This removes 'nan' and replaces it with a friendly message
                     raw_points = kb_row.get("Ten_Points", "")
-                    if str(raw_points).lower() == "nan" or not raw_points:
-                        points_text = "⚠️ No 10-point summary found for this row in the CSV. Please check row alignment."
+                    
+                    if pd.isna(raw_points) or str(raw_points).strip().lower() == "nan":
+                        points_text = "⚠️ No summary found. Check if the 'Ten_Points' column is filled in your CSV."
                     else:
-                        points_text = str(raw_points)
+                        # Convert [Alt+Enter] or \n into actual line breaks for Streamlit
+                        points_text = str(raw_points).replace('[Alt+Enter]', '\n').replace('_x000D_', '\n')
 
-                    study_mode = st.toggle("Enable Study Mode (Hide Notes)", key="kb_study_toggle")
+                    study_mode = st.toggle("Enable Study Mode", key="kb_study_toggle")
                     
                     if study_mode:
-                        st.warning("🙈 **Study Mode Active:** Recall the points before revealing!")
+                        st.warning("🙈 **Recall the points before revealing!**")
                         if st.button("👁️ Reveal Notes"):
-                            st.success(points_text)
+                            st.info(points_text)
                     else:
-                        st.success("📝 **Full Exam Notes:**")
-                        # Use st.info or st.markdown for better visibility
+                        st.success("📝 **Exam Notes:**")
                         st.markdown(points_text)
+
 
                     st.divider()
                     

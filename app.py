@@ -264,24 +264,34 @@ def generate_query_suggestions(search_query: str, text_series: pd.Series):
 @st.cache_data
 def compute_concept_connections(results_df: pd.DataFrame, max_rows: int = 150):
     pair_counts = Counter()
-    # PRIORITY: Ensure these words are always processed if found
-    priority_biowords = {"protein", "enzyme", "glucose", "metabolism", "atp", "cell", "gene"}
+    # Ensure these are never filtered out
+    priority_biowords = {"protein", "enzyme", "glucose", "metabolism", "atp", "cell", "gene", "vitamin"}
 
-    for _, row in results_df.head(max_rows).iterrows():
-        # 1. Get tokens and convert to lowercase immediately
-        raw_tokens = set(re.findall(r"[a-z]{5,}", str(row.get("text_content", "")).lower()))
+    # Increase search depth
+    subset = results_df.head(max_rows)
+    
+    for _, row in subset.iterrows():
+        text = str(row.get("text_content", "")).lower()
+        # Find all words with 4+ letters
+        raw_tokens = re.findall(r"[a-z]{4,}", text)
         
-        # 2. Filter tokens but KEEP priority words even if they fail other checks
-        tokens = {normalize_token(t) for t in raw_tokens 
-                  if pseudo_pos_ok(normalize_token(t)) or t in priority_biowords}
+        # Normalize and filter
+        tokens = set()
+        for t in raw_tokens:
+            norm = normalize_token(t)
+            # If it's a priority word OR passes the POS check, keep it
+            if norm in priority_biowords or pseudo_pos_ok(norm):
+                tokens.add(norm)
         
-        # 3. Count co-occurrences
-        for a, b in combinations(sorted(tokens), 2):
-            pair_counts[(a, b)] += 1
+        # Create pairs
+        if len(tokens) >= 2:
+            for a, b in combinations(sorted(tokens), 2):
+                pair_counts[(a, b)] += 1
 
-    # Increase head(30) to see more bubbles
-    top_pairs = [{"term_a": a, "term_b": b, "co_occurrences": c} for (a, b), c in pair_counts.most_common(30)]
+    top_pairs = [{"term_a": a, "term_b": b, "co_occurrences": c} for (a, b), c in pair_counts.most_common(25)]
     return pd.DataFrame(top_pairs)
+
+
 
 
 
@@ -687,42 +697,35 @@ if df is not None and query:
                     st.info("No related suggestions found yet.")
 
             concepts_df = sanitize_concept_df(compute_concept_connections(results))
-            if "Visual Knowledge Graph" in feature_flags and not concepts_df.empty:
+            
+            if "Visual Knowledge Graph" in feature_flags:
                 st.markdown("#### 🕸️ Visual Knowledge Graph")
                 
-                # 1. Start the DOT string
-                dot = "graph G {\n"
-                dot += "  layout=neato; overlap=false; splines=true;\n"
-                dot += "  node [fontname='Helvetica', fontsize=12, style=filled];\n"
-                
-                # 2. Add the Central Node (The Query)
-                # We use repr() or simple strings to avoid quote collisions
-                safe_query = query.replace('"', '')
-                dot += f'  "{safe_query}" [shape=doublecircle, fillcolor="#FFD700", color="#DAA520", penwidth=3];\n'
-                
-                # 3. Add the Connections
-                top_concepts = concepts_df.head(20)
-                for _, row in top_concepts.iterrows():
-                    term_a = str(row["term_a"]).replace('"', '')
-                    term_b = str(row["term_b"]).replace('"', '')
-                    weight = int(row["co_occurrences"])
+                if concepts_df.empty:
+                    st.warning("⚠️ No concept connections found in the text for this term. Try a more common term like 'Glucose' or 'Protein'.")
+                else:
+                    # Create a simple, safe DOT string
+                    dot = "graph G {\n"
+                    dot += '  node [style=filled, fillcolor="#d1ecff", fontname="Helvetica"];\n'
                     
-                    # Color logic
-                    color = "#C1E1C1" if term_a in ["protein", "enzyme", "gene"] else "#d1ecff"
-                    dot += f'  "{term_a}" [fillcolor="{color}"];\n'
-                    dot += f'  "{term_b}" [fillcolor="#d1ecff"];\n'
+                    # Add the main query node
+                    dot += f'  "{query}" [fillcolor="#FFD700", shape=doublecircle];\n'
                     
-                    # Edge logic
-                    penwidth = min(weight / 2, 5)
-                    dot += f'  "{term_a}" -- "{term_b}" [label="{weight}", color="#7aa6d8", penwidth={penwidth}];\n'
-                
-                dot += "}"
-                
-                # 4. Render with error handling
-                try:
+                    # Add edges
+                    for _, row in concepts_df.head(15).iterrows():
+                        a, b = row["term_a"], row["term_b"]
+                        count = row["co_occurrences"]
+                        dot += f'  "{a}" -- "{b}" [label="{count}"];\n'
+                    
+                    dot += "}"
+                    
+                    # Display the graph
                     st.graphviz_chart(dot)
-                except Exception as e:
-                    st.error(f"Graphviz rendering error: {e}")
+                    
+                    # Display the raw data table below it for verification
+                    with st.expander("View Raw Connection Data"):
+                        st.dataframe(concepts_df)
+
 
                 st.caption("Edge weight = term co-occurrence frequency within indexed textbook content.")
 

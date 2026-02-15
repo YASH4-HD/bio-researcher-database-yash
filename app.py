@@ -257,15 +257,15 @@ def render_bar_figure(df: pd.DataFrame, x_col: str, y_col: str, title: str):
 # --- 2. LOAD DATA ---
 @st.cache_data
 def load_index():
-    fallback_df = pd.DataFrame(
+        fallback_df = pd.DataFrame(
+            {
+                "page": [44],
+                "text_content": [
+                    "glycolysis is a central metabolic pathway for energy generation through enzyme catalyzed reactions"
+                ],
+            }
+        )
 
-    {
-            "page": [44],
-            "text_content": [
-                "glycolysis is a central metabolic pathway for energy generation through enzyme catalyzed reactions"
-            ],
-        }
-    )
 
     csv_path = Path("lehninger_index.csv")
     if not csv_path.exists() or csv_path.stat().st_size == 0:

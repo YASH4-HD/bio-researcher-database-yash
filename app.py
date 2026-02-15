@@ -711,11 +711,28 @@ if df is not None and query:
                     # Add the main query node
                     dot += f'  "{query}" [fillcolor="#FFD700", shape=doublecircle];\n'
                     
-                    # Add edges
+                    # Add edges with smart biological coloring
                     for _, row in concepts_df.head(15).iterrows():
-                        a, b = row["term_a"], row["term_b"]
-                        count = row["co_occurrences"]
-                        dot += f'  "{a}" -- "{b}" [label="{count}"];\n'
+                        a, b = str(row["term_a"]), str(row["term_b"])
+                        count = int(row["co_occurrences"])
+                        
+                        # Logic to color based on biological category
+                        def get_color(term):
+                            term_l = term.lower()
+                            if any(x in term_l for x in ["kinase", "dehydrogenase", "ase", "enzyme"]):
+                                return "#C1E1C1" # Green for Enzymes
+                            if any(x in term_l for x in ["glucose", "pyruvate", "atp", "phosphate", "acid"]):
+                                return "#FFD580" # Orange for Metabolites
+                            return "#d1ecff"     # Blue for others
+
+                    # Apply colors to nodes
+                    dot += f'  "{a}" [fillcolor="{get_color(a)}"];\n'
+                    dot += f'  "{b}" [fillcolor="{get_color(b)}"];\n'
+                    
+                    # Create the connection line
+                    dot += f'  "{a}" -- "{b}" [label="{count}", penwidth={min(count/10, 4)}];\n'
+
+                    
                     
                     dot += "}"
                     

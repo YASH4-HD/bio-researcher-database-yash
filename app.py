@@ -1395,7 +1395,7 @@ if df is not None and query:
                         # Full view button
                         st.link_button("🔍 View Full Image", full_img_url, use_container_width=True)
 
-
+        with tab11:
         with tab_csir_10pts: # Use the correct index for your new tab
             st.header("🧠 CSIR-NET / GATE: 10 Key Exam Points")
             
@@ -1441,7 +1441,7 @@ if df is not None and query:
                         use_container_width=True
                     )
         
-        with tab11:
+        with tab12:
             st.subheader("🧪 Experimental Zone")
             st.caption("Prototype sandbox for rapid hypothesis testing.")
             molecule = st.text_input("Target gene/protein/metabolite", value=query, key="exp_target")

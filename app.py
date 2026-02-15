@@ -1465,7 +1465,7 @@ with st.sidebar:
             use_container_width=True
         )
 
-        )
+        
     else:
         st.info("Your report is empty. Add topics from the 'Reader' tab.")
         st.sidebar.markdown("### 💡 Research Tip")

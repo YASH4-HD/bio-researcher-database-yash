@@ -258,7 +258,7 @@ def render_bar_figure(df: pd.DataFrame, x_col: str, y_col: str, title: str):
 @st.cache_data
 def load_index():
     fallback_df = pd.DataFrame(
-/workspace/bio-researcher-database-yash$ /bin/bash -lc sed -n '261,520p' app.py
+
 {
             "page": [44],
             "text_content": [

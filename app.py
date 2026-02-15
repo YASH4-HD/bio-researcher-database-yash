@@ -256,6 +256,22 @@ def render_bar_figure(df: pd.DataFrame, x_col: str, y_col: str, title: str):
 
 # --- 2. LOAD DATA ---
 @st.cache_data
+def load_knowledge_base():
+    csv_path = Path("knowledge_base.csv")
+    if not csv_path.exists():
+        return pd.DataFrame()
+    try:
+        # Load the CSV and clean column names
+        kb_df = pd.read_csv(csv_path)
+        kb_df.columns = [c.strip() for c in kb_df.columns]
+        return kb_df
+    except Exception:
+        return pd.DataFrame()
+
+# Call the loader
+kb_df = load_knowledge_base()
+
+@st.cache_data
 def load_index():
     fallback_df = pd.DataFrame(
         {
@@ -1288,96 +1304,76 @@ if df is not None and query:
         with tab10:
             st.subheader("📘 CSIR-NET / GATE Planner & Study Reader")
             
-            # Use 'df' as the knowledge base
-            if df is None or df.empty:
-                st.warning("⚠️ Knowledge base is empty. Please check your lehninger_index.csv file.")
+            if kb_df.empty:
+                st.warning("⚠️ knowledge_base.csv not found or empty. Please upload the file to your repository.")
             else:
-                # Initialize session state for the reader
-                if 'page_index' not in st.session_state:
-                    st.session_state.page_index = 0
+                # 1. Initialize session state for KB specifically
+                if 'kb_idx' not in st.session_state:
+                    st.session_state.kb_idx = 0
 
-                # 1. TOP PROGRESS BAR
-                progress_value = (st.session_state.page_index + 1) / len(df)
-                st.progress(progress_value)
-
-                # 2. NAVIGATION TOOLBAR
+                # 2. Navigation Toolbar
                 c1, c2, c3, c4 = st.columns([0.6, 0.8, 0.6, 4])
                 
                 with c1:
-                    if st.button("⬅ PREV", key="gate_prev", use_container_width=True, 
-                                 disabled=st.session_state.page_index == 0):
-                        st.session_state.page_index = max(0, st.session_state.page_index - 1)
+                    if st.button("⬅ PREV", key="kb_prev", disabled=st.session_state.kb_idx == 0):
+                        st.session_state.kb_idx -= 1
                         st.rerun()
                 
                 with c2:
-                    current_pg = st.session_state.page_index + 1
-                    total_pg = len(df)
+                    curr = st.session_state.kb_idx + 1
+                    total = len(kb_df)
                     st.markdown(f"""
-                        <div style="border: 1px solid #ddd; border-radius: 5px; padding: 2px; text-align: center; background-color: #f9f9f9; line-height: 1.2;">
-                            <p style="margin: 0; font-size: 0.7rem; color: gray;">TOPIC</p>
-                            <p style="margin: 0; font-weight: bold; font-size: 1rem;">{current_pg} / {total_pg}</p>
+                        <div style="border: 1px solid #ddd; border-radius: 5px; padding: 2px; text-align: center; background-color: #f0f2f6;">
+                            <p style="margin: 0; font-size: 0.7rem; color: #555;">TOPIC</p>
+                            <p style="margin: 0; font-weight: bold; font-size: 1rem;">{curr} / {total}</p>
                         </div>
                     """, unsafe_allow_html=True)
                 
                 with c3:
-                    if st.button("NEXT ➡", key="gate_next", use_container_width=True, 
-                                 disabled=st.session_state.page_index == len(df) - 1):
-                        st.session_state.page_index = min(len(df) - 1, st.session_state.page_index + 1)
+                    if st.button("NEXT ➡", key="kb_next", disabled=st.session_state.kb_idx == len(kb_df) - 1):
+                        st.session_state.kb_idx += 1
                         st.rerun()
 
                 st.divider()
 
-                # Define current row from your main Lehninger dataframe
-                row = df.iloc[st.session_state.page_index]
+                # 3. Get the current row from knowledge_base.csv
+                kb_row = kb_df.iloc[st.session_state.kb_idx]
                 
-                # Layout: Text on Left, Diagram on Right
-                left, right = st.columns([2, 1])
+                # 4. Layout: Text on Left, Image on Right
+                col_left, col_right = st.columns([2, 1])
                 
-                with left:
-                    # Get topic name (tries 'topic' column, falls back to 'page' number)
-                    topic_title = str(row.get("topic", row.get("page", "Biochemistry Topic")))
-                    st.header(topic_title)
+                with col_left:
+                    # Display Topic and Section
+                    st.header(kb_row.get("Topic", "Untitled Topic"))
+                    st.caption(f"Section: {kb_row.get('Section', 'N/A')}")
                     
-                    # --- AUTO-TAG GENERATOR ---
-                    bio_keywords = ["DNA", "RNA", "Protein", "CRISPR", "Gene", "Cell", "Enzyme", "Metabolism", "Pathway"]
-                    text_content = str(row.get("text_content", ""))
+                    # Display Main Explanation
+                    st.markdown("### 📝 Explanation")
+                    st.write(kb_row.get("Explanation", "No explanation provided."))
                     
-                    found_tags = [tag for tag in bio_keywords if tag.lower() in text_content.lower()]
+                    # Display Ten Points in an Expander
+                    with st.expander("🎯 Ten Key Points (Exam Focus)", expanded=True):
+                        points = kb_row.get("Ten_Points", "No points available.")
+                        # If points are separated by newlines in CSV, they will display correctly here
+                        st.write(points)
                     
-                    if found_tags:
-                        tag_html = ""
-                        for t in found_tags:
-                            tag_html += f'<span style="background-color:#e1f5fe; color:#01579b; padding:4px 10px; border-radius:15px; margin-right:5px; font-size:0.8rem; font-weight:bold; border:1px solid #01579b;">🧬 {t}</span>'
-                        st.markdown(tag_html, unsafe_allow_html=True)
-                        st.write("") 
-                
-                    # Main content from CSV
-                    st.write(text_content)
-                    
-                    with st.expander("📘 Detailed Analysis & Mechanism"):
-                        st.write(f"Detailed view for page {row.get('page')}. Focus on molecular interactions and regulatory nodes relevant to CSIR-NET Part C.")
-                    
-                    if st.button("Add to Research Report", icon="➕", key="gate_report_add"):
-                        if 'report_list' not in st.session_state:
-                            st.session_state['report_list'] = []
-                        
-                        report_entry = {"Topic": topic_title, "Notes": text_content[:200]}
-                        if topic_title not in [item['Topic'] for item in st.session_state['report_list']]:
-                            st.session_state['report_list'].append(report_entry)
-                            st.toast(f"Added {topic_title} to report!", icon="✅")
-                        else:
-                            st.warning("Topic already in report.")
+                    if st.button("Add to Research Report", icon="➕", key="kb_report_btn"):
+                        st.toast(f"Added {kb_row['Topic']} to report!")
 
-                with right:
-                    # --- DIAGRAM SECTION ---
-                    with st.expander("🖼️ View Topic Diagram", expanded=True):
-                        # Use your R2 URL logic to show the textbook page as the diagram
-                        page_num = row.get("page")
-                        if page_num:
-                            img_url = f"{R2_URL}/full_pages/page_{page_num}.png"
-                            st.image(img_url, use_container_width=True, caption=f"Lehninger Fig. Page {page_num}")
-                        else:
-                            st.info("No diagram available for this section.")
+                with col_right:
+                    # Display Image from CSV
+                    st.markdown("### 🖼️ Diagram")
+                    img_file = str(kb_row.get("Image", ""))
+                    if img_file and img_file != "nan":
+                        # This assumes images are in your repo or accessible via URL
+                        # If you have a specific folder for images, add it here: e.g., f"images/{img_file}"
+                        try:
+                            st.image(img_file, use_container_width=True, caption=kb_row.get("Topic"))
+                        except:
+                            st.info(f"Image reference found: {img_file} (File not found in path)")
+                    else:
+                        st.info("No diagram linked for this topic.")
+
 
         with tab11:
             st.subheader("🧪 Experimental Zone")

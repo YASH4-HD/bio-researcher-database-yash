@@ -1487,21 +1487,54 @@ if df is not None and query:
         
         with tab12:
             st.subheader("🧪 Experimental Zone")
-            st.caption("Prototype sandbox for rapid hypothesis testing.")
-            molecule = st.text_input("Target gene/protein/metabolite", value=query, key="exp_target")
-            intervention = st.selectbox("Intervention", ["Knockdown", "Overexpression", "Inhibitor", "CRISPR edit"], key="exp_intervention")
-            model_system = st.selectbox("Model system", ["T-cells", "HEK293", "Yeast", "Mouse"], key="exp_model")
-            if st.button("Generate Experiment Draft"):
-                st.session_state["exp_plan"] = (
-                    f"Hypothesis: Perturbing **{molecule}** via **{intervention}** in **{model_system}** will alter pathway dynamics.\n"
-                    "Readouts: qPCR, western blot, and flux proxy (lactate/ATP).\n"
-                    "Controls: non-targeting control + vehicle + baseline condition."
-                )
-            if st.session_state.get("exp_plan"):
-                st.success(st.session_state["exp_plan"]) # <--- ADD INDENTATION HERE
+            st.caption("Prototype sandbox for rapid hypothesis testing and molecular design.")
+            
+            # Create sub-tabs for better organization
+            exp_sub1, exp_sub2 = st.tabs(["📋 Experiment Planner", "🧬 Primer Designer"])
+            
+            with exp_sub1:
+                molecule = st.text_input("Target gene/protein/metabolite", value=query, key="exp_target")
+                intervention = st.selectbox("Intervention", ["Knockdown", "Overexpression", "Inhibitor", "CRISPR edit"], key="exp_intervention")
+                model_system = st.selectbox("Model system", ["T-cells", "HEK293", "Yeast", "Mouse"], key="exp_model")
+                
+                if st.button("Generate Experiment Draft"):
+                    st.session_state["exp_plan"] = (
+                        f"**Hypothesis:** Perturbing **{molecule}** via **{intervention}** in **{model_system}** will alter pathway dynamics.\n\n"
+                        "**Readouts:** qPCR for transcript levels, Western Blot for protein, and metabolic flux proxy (Lactate/ATP ratio).\n\n"
+                        "**Controls:** Non-targeting control (NTC) + Vehicle-only treatment + Baseline wild-type condition."
+                    )
+                
+                if st.session_state.get("exp_plan"):
+                    st.success(st.session_state["exp_plan"])
 
+            with exp_sub2:
+                st.markdown("#### 🧬 Rapid Primer Property Checker")
+                st.caption("Calculate Tm and GC content for PCR primers.")
+                primer_seq = st.text_input("Enter Primer Sequence (5' -> 3')", value="GATCGATCGATCGATC", key="primer_input").upper().strip()
+                
+                if primer_seq:
+                    # Wallace Rule: 2*(A+T) + 4*(G+C)
+                    at_count = primer_seq.count('A') + primer_seq.count('T')
+                    gc_count = primer_seq.count('G') + primer_seq.count('C')
+                    tm = (2 * at_count) + (4 * gc_count)
+                    gc_content = (gc_count / len(primer_seq)) * 100 if len(primer_seq) > 0 else 0
+                    
+                    p_col1, p_col2, p_col3 = st.columns(3)
+                    p_col1.metric("Melting Temp (Tm)", f"{tm}°C")
+                    p_col2.metric("GC Content", f"{gc_content:.1f}%")
+                    p_col3.metric("Length", f"{len(primer_seq)} bp")
+                    
+                    # Scientific Validation Logic
+                    if 52 <= tm <= 65:
+                        st.success("✅ Tm is optimal for standard PCR.")
+                    else:
+                        st.warning("⚠️ Tm is outside standard range (52-65°C).")
+                        
+                    if 40 <= gc_content <= 60:
+                        st.success("✅ GC content is balanced.")
+                    else:
+                        st.error("❌ GC content outside 40-60% range.")
 
-        # --- END OF TABS ---
         
             else:
                 # This else belongs to "if not results.empty:"

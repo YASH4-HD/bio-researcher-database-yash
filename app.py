@@ -186,8 +186,8 @@ with st.sidebar:
 
     # --- EXAM DATES ---
     EXAMS = {
-        "CSIR NET JUNE": datetime.date(2026, 6, 1),
-        "GATE 2027": datetime.date(2027, 2, 2),
+        "CSIR NET JUNE": date(2026, 6, 1),
+        "GATE 2027": date(2027, 2, 2),
     }
 
     st.subheader("📆 Exam Countdown")

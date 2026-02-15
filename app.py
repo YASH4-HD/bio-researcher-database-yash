@@ -1394,57 +1394,55 @@ if df is not None and query:
                         
                         # Full view button
                         st.link_button("🔍 View Full Image", full_img_url, use_container_width=True)
-        with tab11:
+                with tab11:
             st.header("🧠 CSIR-NET / GATE: 10 Key Exam Points")
             
-            # Use the dataframe loaded from knowledge_base.csv
             if kb_df.empty:
-                st.warning("Please upload knowledge_base.csv to your repository.")
+                st.warning("Please upload knowledge_base.csv")
             else:
-                # Sync index with the main Reader tab
                 current_kb_idx = st.session_state.get('kb_idx', 0)
                 
-                # Ensure index is within bounds
                 if current_kb_idx < len(kb_df):
                     kb_row = kb_df.iloc[current_kb_idx]
                     
-                    # Header Info
                     st.info(f"**Current Topic:** {kb_row.get('Topic', 'N/A')}")
                     
-                    # --- ACTIVE RECALL SYSTEM (Study Mode) ---
+                    # --- DATA CLEANING STEP ---
+                    # This removes 'nan' and replaces it with a friendly message
+                    raw_points = kb_row.get("Ten_Points", "")
+                    if str(raw_points).lower() == "nan" or not raw_points:
+                        points_text = "⚠️ No 10-point summary found for this row in the CSV. Please check row alignment."
+                    else:
+                        points_text = str(raw_points)
+
                     study_mode = st.toggle("Enable Study Mode (Hide Notes)", key="kb_study_toggle")
                     
-                    points_text = kb_row.get("Ten_Points", "No points available.")
-
                     if study_mode:
-                        st.warning("🙈 **Study Mode Active:** Try to recall the 10 key points about this topic before revealing them!")
+                        st.warning("🙈 **Study Mode Active:** Recall the points before revealing!")
                         if st.button("👁️ Reveal Notes"):
-                            st.info(points_text)
+                            st.success(points_text)
                     else:
                         st.success("📝 **Full Exam Notes:**")
-                        # Display the 10 points
+                        # Use st.info or st.markdown for better visibility
                         st.markdown(points_text)
 
                     st.divider()
                     
-                    # --- ACTION BUTTONS ---
                     c1, c2 = st.columns(2)
                     with c1:
                         if st.button("📑 Generate Citation", key="kb_cite_btn"):
-                            st.code(f"Nama, Y. (2024). {kb_row.get('Topic', 'Research')}. BioVisual Knowledge Base.")
+                            st.code(f"Nama, Y. (2024). {kb_row.get('Topic', 'Topic')}. BioVisual Knowledge Base.")
                     
                     with c2:
-                        # Download specific study notes for this topic
                         st.download_button(
                             label="📥 Download Study Notes",
-                            data=str(points_text),
-                            file_name=f"{kb_row.get('Topic', 'Topic')}_notes.txt",
+                            data=points_text,
+                            file_name=f"{kb_row.get('Topic', 'Notes')}.txt",
                             mime="text/plain",
                             use_container_width=True,
                             key="kb_dl_btn"
                         )
-                else:
-                    st.error("Index out of range. Please reset the reader.")
+
 
         
         with tab12:

@@ -1,10 +1,12 @@
 import hashlib
 import io
+import json
 import re
 import textwrap
 from collections import Counter
 from itertools import combinations
 from pathlib import Path
+from urllib import error, request
 from urllib.parse import quote_plus
 
 import pandas as pd
@@ -348,6 +350,51 @@ def find_intermediate_nodes(term_a: str, term_b: str, concept_df: pd.DataFrame):
     set_b = neighbors.get(term_b, set())
     return sorted(list(set_a & set_b))
 
+def sanitize_concept_df(concept_df: pd.DataFrame):
+    if concept_df.empty:
+        return concept_df
+    mask = (concept_df["term_a"] != "vetbook") & (concept_df["term_b"] != "vetbook")
+    return concept_df[mask].copy()
+
+
+def call_ai_analyst(provider: str, api_key: str, prompt: str, model_name: str):
+    headers = {"Content-Type": "application/json"}
+    if provider == "OpenAI":
+        url = "https://api.openai.com/v1/chat/completions"
+        headers["Authorization"] = f"Bearer {api_key}"
+        payload = {
+            "model": model_name or "gpt-4o-mini",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.3,
+        }
+    elif provider == "Groq":
+        url = "https://api.groq.com/openai/v1/chat/completions"
+        headers["Authorization"] = f"Bearer {api_key}"
+        payload = {
+            "model": model_name or "llama-3.1-8b-instant",
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.3,
+        }
+    else:
+        url = "https://api-inference.huggingface.co/models/tiiuae/falcon-7b-instruct"
+        headers["Authorization"] = f"Bearer {api_key}"
+        payload = {"inputs": prompt, "parameters": {"max_new_tokens": 220, "temperature": 0.2}}
+
+    req = request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
+    try:
+        with request.urlopen(req, timeout=45) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        if provider in {"OpenAI", "Groq"}:
+            return data.get("choices", [{}])[0].get("message", {}).get("content", "No response")
+        if isinstance(data, list) and data and isinstance(data[0], dict):
+            return data[0].get("generated_text", "No response")
+        return str(data)
+    except error.HTTPError as exc:
+        return f"API error ({exc.code}). Check key/model/provider settings."
+    except Exception as exc:
+        return f"AI request failed: {exc}"
+
+
 
 # --- 3. PUBMED FUNCTION ---
 def search_pubmed(search_query, author_filter=""):
@@ -395,7 +442,7 @@ if df is not None and query:
 
     if not results.empty:
         st.sidebar.success(f"Found in {len(results)} pages")
-        tab1, tab2, tab3, tab4, tab5 = st.tabs(["📖 Textbook Context", "🧠 Discovery Lab", "📚 Literature", "🎯 10 Points", "⚖️ Comparison"])
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📖 Textbook Context", "🧠 Discovery Lab", "📚 Literature", "🎯 10 Points", "⚖️ Comparison", "🤖 AI Analyst"])
 
         with tab1:
             selected_page = st.sidebar.selectbox("Select Page to View", results["page"].tolist())
@@ -417,7 +464,7 @@ if df is not None and query:
                 else:
                     st.info("No related suggestions found yet.")
 
-            concepts_df = compute_concept_connections(results)
+            concepts_df = sanitize_concept_df(compute_concept_connections(results))
             if "Visual Knowledge Graph" in feature_flags and not concepts_df.empty:
                 st.markdown("#### 🕸️ Visual Knowledge Graph")
                 dot = "graph G {\nlayout=neato; overlap=false; splines=true;\n"
@@ -550,7 +597,8 @@ if df is not None and query:
                     for q in quiz:
                         st.markdown(f"**{q['q']}**")
                         st.write("A)", q["options"][0], " | B)", q["options"][1], " | C)", q["options"][2], " | D)", q["options"][3])
-                        st.caption(f"Answer: {q['answer']}")
+                        with st.expander("Click to reveal answer"):
+                            st.caption(f"Answer: {q['answer']}")
 
         with tab5:
             st.subheader("Concept Comparison Tool")
@@ -563,8 +611,8 @@ if df is not None and query:
                 if overlap_pages:
                     st.caption("Overlapping pages: " + ", ".join(map(str, overlap_pages[:20])))
 
-                concepts_a_df = compute_concept_connections(results).head(25)
-                concepts_b_df = compute_concept_connections(results_b).head(25)
+                concepts_a_df = sanitize_concept_df(compute_concept_connections(results)).head(25)
+                concepts_b_df = sanitize_concept_df(compute_concept_connections(results_b)).head(25)
                 concepts_a = set(concepts_a_df["term_a"].tolist() + concepts_a_df["term_b"].tolist()) if not concepts_a_df.empty else set()
                 concepts_b = set(concepts_b_df["term_a"].tolist() + concepts_b_df["term_b"].tolist()) if not concepts_b_df.empty else set()
                 overlap_terms = sorted(list(concepts_a & concepts_b))
@@ -581,5 +629,46 @@ if df is not None and query:
                         st.success("Potential bridge nodes: " + ", ".join(bridge_nodes[:10]))
                     else:
                         st.info("No direct intermediate nodes detected from current concept graph.")
+        with tab6:
+            st.subheader("Bio-Analyst Assistant")
+            st.caption("Use API key in-session only. No key is stored by this app.")
+
+            provider = st.selectbox("Provider", ["Groq", "OpenAI", "HuggingFace"]) 
+            api_key = st.text_input("Enter your API key", type="password")
+            model_name = st.text_input("Model (optional)", value="")
+
+            context_points = extract_top_study_points(results, query, top_n=10)
+            docs = st.session_state.get("pubmed_docs", [])
+            expression_context = ""
+            if docs:
+                first_symbols = extract_gene_symbols(docs[0].get("Title", ""))
+                if first_symbols:
+                    sym = first_symbols[0]
+                    exp_df = deterministic_expression(sym)
+                    expression_context = f"Expression profile for {sym}: " + ", ".join([f"{r.tissue}:{r.expression:.2f}" for r in exp_df.itertuples()])
+
+            default_prompt = (
+                "You are a Molecular Biology Assistant. Based on the 10 points from Lehninger and expression context, "
+                "suggest a hypothesis for a metabolic intervention and one experimental validation step."
+            )
+            user_prompt = st.text_area("Prompt", value=default_prompt, height=120)
+
+            if st.button("Run AI Analysis"):
+                if not api_key:
+                    st.warning("Please provide an API key.")
+                else:
+                    assembled_prompt = (
+                        f"Topic: {query}\n\n"
+                        + "10 points:\n- "
+                        + "\n- ".join(context_points[:10])
+                        + "\n\n"
+                        + f"Expression context:\n{expression_context or 'Not available'}\n\n"
+                        + f"User instruction:\n{user_prompt}"
+                    )
+                    with st.spinner("Calling AI provider..."):
+                        response = call_ai_analyst(provider, api_key, assembled_prompt, model_name)
+                    st.markdown("### AI Analysis")
+                    st.write(response)
+
     else:
         st.warning(f"No matches found for '{query}'.")

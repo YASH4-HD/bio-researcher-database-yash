@@ -1041,62 +1041,58 @@ if df is not None and query:
                     )
 
         with tab9:
-            st.subheader("🧬 Bioinformatics Toolkit")
+            st.subheader("🌐 Global Bioinformatics Portal")
+            st.caption("Centralized Research Command Center: Access primary biological databases without leaving the app.")
 
-            with st.expander("1) Sequence Analysis", expanded=True):
-                seq_input = st.text_area("Paste DNA/RNA or Protein sequence", value="", height=120, key="bio_seq_input")
-                if st.button("Analyze Sequence", key="bio_seq_analyze"):
-                    seq = clean_sequence(seq_input)
-                    seq_type = infer_sequence_type(seq)
-                    if not seq:
-                        st.warning("Please paste a valid sequence first.")
-                    elif seq_type == "Unknown":
-                        st.warning("Sequence contains unsupported characters. Use standard IUPAC DNA/RNA or protein letters.")
-                    else:
-                        st.success(f"Detected sequence type: {seq_type} | Length: {len(seq)}")
-                        if seq_type == "DNA/RNA":
-                            gc = gc_percent(seq.replace("U", "T"))
-                            mw = molecular_weight(seq.replace("U", "T"), seq_type="DNA")
-                            st.write(f"GC Content: **{gc:.2f}%**")
-                            st.write(f"Molecular Weight (DNA estimate): **{mw:.2f} Da**")
-                            st.info("Isoelectric point (pI) is typically used for proteins, not nucleic acids.")
-                        else:
-                            protein = ProteinAnalysis(seq)
-                            mw = protein.molecular_weight()
-                            pi = protein.isoelectric_point()
-                            st.write(f"Molecular Weight: **{mw:.2f} Da**")
-                            st.write(f"Isoelectric Point (pI): **{pi:.2f}**")
+            # 1. Database Selection Row
+            col_sel, col_search = st.columns([2, 1])
+            with col_sel:
+                portal_choice = st.segmented_control(
+                    "Select Primary Database",
+                    options=["RCSB PDB", "UniProt", "NCBI Gene", "NCBI Structure", "AlphaFold DB"],
+                    default="RCSB PDB"
+                )
+            with col_search:
+                # This allows you to override the main search query for a specific ID (like a PDB ID)
+                portal_query = st.text_input("Database-specific ID/Term", value=query).strip()
 
-            with st.expander("2) Primer Designer", expanded=False):
-                primer_target = st.text_area("Target DNA sequence", value="", height=120, key="primer_target")
-                primer_len = st.slider("Primer length", min_value=18, max_value=30, value=20, key="primer_len")
-                if st.button("Design Primers", key="primer_design"):
-                    target = clean_sequence(primer_target).replace("U", "T")
-                    if len(target) < primer_len * 2:
-                        st.warning("Target sequence is too short for the selected primer length.")
-                    elif infer_sequence_type(target) != "DNA/RNA":
-                        st.warning("Primer design requires a DNA-like sequence (A/C/G/T/U).")
-                    else:
-                        forward = target[:primer_len]
-                        reverse_template = target[-primer_len:]
-                        comp = str.maketrans("ACGT", "TGCA")
-                        reverse = reverse_template.translate(comp)[::-1]
-                        f_tm, r_tm = wallace_tm(forward), wallace_tm(reverse)
-                        f_gc, r_gc = gc_percent(forward), gc_percent(reverse)
+            st.divider()
 
-                        st.markdown("**Forward Primer**")
-                        st.code(forward)
-                        st.caption(f"Tm: {f_tm}°C | GC: {f_gc:.1f}% | 3' GC clamp: {'Yes' if forward[-1] in {'G', 'C'} else 'No'}")
+            # 2. Logic to construct the correct URL
+            # We use specific search URLs to take the user directly to the data
+            if portal_choice == "RCSB PDB":
+                if len(portal_query) == 4: # Likely a PDB ID (e.g., 6MOJ)
+                    target_url = f"https://www.rcsb.org/structure/{portal_query}"
+                else:
+                    target_url = f"https://www.rcsb.org/search?request=%7B%22query%22%3A%7B%22type%22%3A%22terminal%22%2C%22service%22%3A%22text%22%2C%22parameters%22%3A%7B%22attribute%22%3A%22rcsb_entry_info.selected_polymer_entity_type%22%2C%22operator%22%3A%22exact_match%22%2C%22value%22%3A%22Protein%22%7D%7D%7D"
+            
+            elif portal_choice == "UniProt":
+                target_url = f"https://www.uniprot.org/uniprotkb?query={quote_plus(portal_query)}"
+            
+            elif portal_choice == "NCBI Gene":
+                target_url = f"https://www.ncbi.nlm.nih.gov/gene/?term={quote_plus(portal_query)}"
+            
+            elif portal_choice == "NCBI Structure":
+                target_url = f"https://www.ncbi.nlm.nih.gov/structure/?term={quote_plus(portal_query)}"
+            
+            elif portal_choice == "AlphaFold DB":
+                target_url = f"https://alphafold.ebi.ac.uk/search/text?q={quote_plus(portal_query)}"
 
-                        st.markdown("**Reverse Primer**")
-                        st.code(reverse)
-                        st.caption(f"Tm: {r_tm}°C | GC: {r_gc:.1f}% | 3' GC clamp: {'Yes' if reverse[-1] in {'G', 'C'} else 'No'}")
+            # 3. Enhanced UI for the Portal
+            st.markdown(f"### 🔍 {portal_choice} Viewer: `{portal_query.upper()}`")
+            
+            c1, c2 = st.columns([3, 1])
+            with c1:
+                st.info(f"Currently viewing integrated record for **{portal_query}** from **{portal_choice}**.")
+            with c2:
+                st.link_button("🚀 Open in New Tab", target_url, use_container_width=True)
 
-            with st.expander("3) PDB 3D Structure Viewer", expanded=False):
-                pdb_id = st.text_input("PDB ID (e.g., 1TUP, 6M0J)", value="1TUP", key="pdb_id").strip().upper()
-                if pdb_id:
-                    st.markdown(f"Open interactive structure page: https://www.rcsb.org/structure/{pdb_id}")
-                    st.components.v1.iframe(f"https://www.rcsb.org/3d-view/{pdb_id}", height=520, scrolling=False)
+            # 4. The Large-Scale Iframe
+            # Height=1200 ensures the full page is visible without internal scrolling lag
+            st.components.v1.iframe(target_url, height=1200, scrolling=True)
+
+            st.caption("Note: Some data-heavy pages may take a few seconds to render inside the frame.")
+
 
         with tab10:
             st.subheader("📘 CSIR-NET / GATE Planner")

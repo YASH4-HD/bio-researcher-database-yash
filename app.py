@@ -706,7 +706,7 @@ if df is not None and query:
                 else:
                     # Create a simple, safe DOT string
                     dot = "graph G {\n"
-                    dot += '  node [style=filled, fillcolor="#d1ecff", fontname="Helvetica"];\n'
+                    dot += "  layout=neato; overlap=false; splines=true; sep='+20'; esep='+10';\n"
                     
                     # Add the main query node
                     dot += f'  "{query}" [fillcolor="#FFD700", shape=doublecircle];\n'

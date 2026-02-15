@@ -8,7 +8,7 @@ from itertools import combinations
 from pathlib import Path
 from urllib import error, request
 from urllib.parse import quote_plus
-import google.generativeai as genai
+
 import pandas as pd
 import streamlit as st
 from Bio import Entrez
@@ -374,6 +374,72 @@ def validate_api_key(provider: str, api_key: str):
     return True, ""
 
 
+def call_gemini_with_fallback(api_key: str, prompt: str, model_name: str):
+    base_headers = {"Content-Type": "application/json"}
+
+    requested = (model_name or "gemini-1.5-flash").replace("models/", "").strip()
+    candidates = [requested]
+    if not requested.endswith("-latest"):
+        candidates.append(f"{requested}-latest")
+    candidates.extend(["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro"])
+
+    # discover available models for this key/project and prioritize matching ones
+    try:
+        list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+        list_req = request.Request(list_url, headers=base_headers, method="GET")
+        with request.urlopen(list_req, timeout=30) as resp:
+            model_data = json.loads(resp.read().decode("utf-8"))
+        for m in model_data.get("models", []):
+            name = str(m.get("name", ""))  # e.g., models/gemini-1.5-flash
+            methods = m.get("supportedGenerationMethods", [])
+            if name.startswith("models/") and "generateContent" in methods:
+                short = name.split("models/", 1)[1]
+                if short not in candidates:
+                    candidates.append(short)
+    except Exception:
+        pass
+
+    tried = []
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.3},
+    }
+
+    for model in candidates:
+        if model in tried:
+            continue
+        tried.append(model)
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        req = request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=base_headers, method="POST")
+        try:
+            with request.urlopen(req, timeout=45) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            cands = data.get("candidates", []) if isinstance(data, dict) else []
+            if cands:
+                parts = cands[0].get("content", {}).get("parts", [])
+                if parts and isinstance(parts[0], dict) and parts[0].get("text"):
+                    return parts[0]["text"]
+                return str(data)
+        except error.HTTPError as exc:
+            body = ""
+            try:
+                body = exc.read().decode("utf-8", errors="ignore")
+            except Exception:
+                body = ""
+            if exc.code == 404:
+                continue  # try next model candidate
+            if exc.code in (400, 403):
+                return (
+                    "Gemini request failed (400/403). Verify API key validity, Generative Language API access, and selected model name."
+                    + (f"\nServer details: {body[:280]}" if body else "")
+                )
+            return f"API error ({exc.code}). Check key/model/provider settings." + (f"\nServer details: {body[:280]}" if body else "")
+        except Exception as exc:
+            return f"AI request failed: {exc}"
+
+    return "Gemini model not found for this API version/project. Try model `gemini-1.5-flash` or `gemini-1.5-flash-latest`, and ensure Generative Language API is enabled for your Google project."
+
+
 def call_ai_analyst(provider: str, api_key: str, prompt: str, model_name: str):
     headers = {"Content-Type": "application/json"}
     if provider == "OpenAI":
@@ -398,12 +464,7 @@ def call_ai_analyst(provider: str, api_key: str, prompt: str, model_name: str):
         headers["Authorization"] = f"Bearer {api_key}"
         payload = {"inputs": prompt, "parameters": {"max_new_tokens": 220, "temperature": 0.2}}
     else:  # Gemini
-        model = model_name or "gemini-1.5-flash"
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-        payload = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.3},
-        }
+        return call_gemini_with_fallback(api_key, prompt, model_name)
 
     req = request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
     try:
@@ -411,13 +472,6 @@ def call_ai_analyst(provider: str, api_key: str, prompt: str, model_name: str):
             data = json.loads(resp.read().decode("utf-8"))
         if provider in {"OpenAI", "Groq"}:
             return data.get("choices", [{}])[0].get("message", {}).get("content", "No response")
-        if provider == "Gemini":
-            candidates = data.get("candidates", []) if isinstance(data, dict) else []
-            if candidates:
-                parts = candidates[0].get("content", {}).get("parts", [])
-                if parts and isinstance(parts[0], dict):
-                    return parts[0].get("text", "No response")
-            return str(data)
         if isinstance(data, list) and data and isinstance(data[0], dict):
             return data[0].get("generated_text", "No response")
         return str(data)

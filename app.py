@@ -1243,14 +1243,12 @@ if df is not None and query:
                 if portal_choice == "RCSB PDB":
                     # Check if it looks like a PDB ID (4 characters, alphanumeric)
                     if len(portal_query) == 4 and portal_query.isalnum():
-                        target_url = f"https://www.rcsb.org/structure/{portal_query}"
-                    else:
-                        # RCSB expects JSON in the `request` query param on `/search`.
+                       # RCSB expects JSON in the `request` query param on `/search`.
                         # Passing plain text as `query=` causes the in-page JSON parse error.
                         rcsb_request = {
                             "query": {
                                 "type": "terminal",
-                                "service": "text",
+                                "service": "full_text",
                                 "parameters": {
                                     "operator": "contains_words",
                                     "value": portal_query,
@@ -1258,8 +1256,8 @@ if df is not None and query:
                             },
                             "request_options": {"pager": {"start": 0, "rows": 25}},
                             "return_type": "entry",
-                    }
-                    target_url = f"https://www.rcsb.org/search?request={quote_plus(json.dumps(rcsb_request))}"
+                        }
+                        target_url = f"https://www.rcsb.org/search?request={quote_plus(json.dumps(rcsb_request))}"
                 
                 elif portal_choice == "UniProt":
                     target_url = f"https://www.uniprot.org/uniprotkb?query={quote_plus(portal_query)}"

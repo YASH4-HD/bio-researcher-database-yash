@@ -1406,4 +1406,34 @@ if df is not None and query:
             st.sidebar.info("Restriction enzymes work best at specific pH and temperature buffers.")
 
 # --- END OF FILE ---
-
+# =========================
+# SIDEBAR: RESEARCH REPORT
+# =========================
+with st.sidebar:
+    st.divider()
+    st.header("📋 My Research Report")
+    
+    if 'report_list' in st.session_state and st.session_state['report_list']:
+        for idx, item in enumerate(st.session_state['report_list']):
+            st.write(f"{idx+1}. {item['Topic']}")
+        
+        if st.button("🗑️ Clear Report"):
+            st.session_state['report_list'] = []
+            st.rerun()
+            
+        # Create the download string
+        full_report = "BIO-VERIFY RESEARCH REPORT\n" + "="*25 + "\n\n"
+        for item in st.session_state['report_list']:
+            full_report += f"TOPIC: {item['Topic']}\n{item['Notes']}\n\n" + "-"*20 + "\n"
+            
+        st.download_button(
+            label="📥 Download Full Report",
+            data=full_report,
+            file_name="Bio_Research_Report.txt",
+            mime="text/plain",
+            use_container_width=True
+        )
+    else:
+        st.info("Your report is empty. Add topics from the 'Reader' tab.")
+        st.sidebar.markdown("### 💡 Research Tip")
+        st.sidebar.info("Restriction enzymes work best at specific pH and temperature buffers.")

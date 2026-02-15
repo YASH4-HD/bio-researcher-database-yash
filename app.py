@@ -1513,27 +1513,35 @@ if df is not None and query:
                 primer_seq = st.text_input("Enter Primer Sequence (5' -> 3')", value="GATCGATCGATCGATC", key="primer_input").upper().strip()
                 
                 if primer_seq:
-                    # Wallace Rule: 2*(A+T) + 4*(G+C)
+                    # Count bases
                     at_count = primer_seq.count('A') + primer_seq.count('T')
                     gc_count = primer_seq.count('G') + primer_seq.count('C')
-                    tm = (2 * at_count) + (4 * gc_count)
-                    gc_content = (gc_count / len(primer_seq)) * 100 if len(primer_seq) > 0 else 0
+                    seq_len = len(primer_seq)
+                    
+                    # Professional Tm Calculation Logic
+                    if seq_len < 14:
+                        # Wallace Rule for very short primers
+                        tm = (2 * at_count) + (4 * gc_count)
+                    else:
+                        # Salt-adjusted formula for longer primers (standard for 14-60 bp)
+                        # Formula: 64.9 + 41 * (yGC - 16.4) / n
+                        tm = 64.9 + 41 * (gc_count - 16.4) / seq_len
+                    
+                    gc_content = (gc_count / seq_len) * 100 if seq_len > 0 else 0
                     
                     p_col1, p_col2, p_col3 = st.columns(3)
-                    p_col1.metric("Melting Temp (Tm)", f"{tm}°C")
+                    p_col1.metric("Melting Temp (Tm)", f"{tm:.1f}°C")
                     p_col2.metric("GC Content", f"{gc_content:.1f}%")
-                    p_col3.metric("Length", f"{len(primer_seq)} bp")
+                    p_col3.metric("Length", f"{seq_len} bp")
                     
-                    # Scientific Validation Logic
-                    if 52 <= tm <= 65:
-                        st.success("✅ Tm is optimal for standard PCR.")
+                    # Updated Scientific Validation Logic
+                    if 55 <= tm <= 72:
+                        st.success(f"✅ Tm ({tm:.1f}°C) is optimal for high-fidelity PCR.")
+                    elif tm > 72:
+                        st.warning("⚠️ High Tm: Consider a higher annealing temperature or DMSO.")
                     else:
-                        st.warning("⚠️ Tm is outside standard range (52-65°C).")
-                        
-                    if 40 <= gc_content <= 60:
-                        st.success("✅ GC content is balanced.")
-                    else:
-                        st.error("❌ GC content outside 40-60% range.")
+                        st.warning("⚠️ Low Tm: Consider extending the primer length.")
+
                    
         # --- END OF ALL TABS ---
         

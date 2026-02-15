@@ -633,9 +633,42 @@ if df is not None and query:
             st.subheader("Bio-Analyst Assistant")
             st.caption("Use API key in-session only. No key is stored by this app.")
 
-            provider = st.selectbox("Provider", ["Groq", "OpenAI", "HuggingFace"]) 
+            provider = st.selectbox("Provider", ["Groq", "OpenAI", "HuggingFace"])
             api_key = st.text_input("Enter your API key", type="password")
-            model_name = st.text_input("Model (optional)", value="")
+
+            if provider == "Groq":
+                model_name = st.selectbox(
+                    "Groq model",
+                    ["llama3-70b-8192", "llama3-8b-8192"],
+                    index=0,
+                    help="70B = deeper biology reasoning, 8B = faster formatting/cleanup.",
+                )
+            else:
+                model_name = st.text_input("Model (optional)", value="")
+
+            if "ai_prompt" not in st.session_state:
+                st.session_state["ai_prompt"] = (
+                    "You are a Molecular Biology Assistant. Based on the 10 points from Lehninger and expression context, "
+                    "suggest a hypothesis for a metabolic intervention and one experimental validation step."
+                )
+
+            st.markdown("#### Prompt templates")
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                if st.button("Summarize clinical significance"):
+                    st.session_state["ai_prompt"] = (
+                        "Summarize the clinical significance of this pathway, include one disease link and one translational biomarker."
+                    )
+            with c2:
+                if st.button("Suggest a CRISPR guide RNA strategy"):
+                    st.session_state["ai_prompt"] = (
+                        "Suggest a CRISPR guide RNA strategy for one key gene from this context, including controls and expected readouts."
+                    )
+            with c3:
+                if st.button("Analyze metabolic flux in T-cells"):
+                    st.session_state["ai_prompt"] = (
+                        "Analyze how this topic may alter metabolic flux in T-cells and propose one perturbation experiment."
+                    )
 
             context_points = extract_top_study_points(results, query, top_n=10)
             docs = st.session_state.get("pubmed_docs", [])
@@ -647,11 +680,7 @@ if df is not None and query:
                     exp_df = deterministic_expression(sym)
                     expression_context = f"Expression profile for {sym}: " + ", ".join([f"{r.tissue}:{r.expression:.2f}" for r in exp_df.itertuples()])
 
-            default_prompt = (
-                "You are a Molecular Biology Assistant. Based on the 10 points from Lehninger and expression context, "
-                "suggest a hypothesis for a metabolic intervention and one experimental validation step."
-            )
-            user_prompt = st.text_area("Prompt", value=default_prompt, height=120)
+            user_prompt = st.text_area("Prompt", key="ai_prompt", height=120)
 
             if st.button("Run AI Analysis"):
                 if not api_key:

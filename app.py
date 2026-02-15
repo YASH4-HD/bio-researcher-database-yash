@@ -1239,13 +1239,14 @@ if df is not None and query:
                     # If the user hasn't typed anything specific, use the main query
                     portal_query = st.text_input("ID or Search Term", value=query, key="portal_search_input").strip()
 
-                # URL Logic
+                # --- FIXED RCSB PDB URL LOGIC ---
                 if portal_choice == "RCSB PDB":
                     # Check if it looks like a PDB ID (4 characters, alphanumeric)
                     if len(portal_query) == 4 and portal_query.isalnum():
                         target_url = f"https://www.rcsb.org/structure/{portal_query}"
                     else:
-                        # Otherwise, use the general SEARCH URL (this won't crash)
+                        # For general terms like 'crispr' or 'glycolysis', use the search URL
+                        # This avoids the "Not valid JSON" error
                         target_url = f"https://www.rcsb.org/search?query={quote_plus(portal_query)}"
                 
                 elif portal_choice == "UniProt":

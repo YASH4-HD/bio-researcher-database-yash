@@ -1,4 +1,5 @@
 import hashlib
+import importlib.util
 import io
 import json
 import re
@@ -13,7 +14,12 @@ from urllib.parse import quote_plus
 import pandas as pd
 import streamlit as st
 from Bio import Entrez
-import matplotlib.pyplot as plt
+
+HAS_MATPLOTLIB = importlib.util.find_spec("matplotlib") is not None
+if HAS_MATPLOTLIB:
+    import matplotlib.pyplot as plt
+else:
+    plt = None
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(layout="wide", page_title="BioVisual Search Engine")
@@ -150,6 +156,11 @@ def render_sidebar_status():
 
     st.sidebar.markdown("### 🛡️ Bio-Verify 2026")
     st.sidebar.write(f"📅 {today.strftime('%d %b %Y')}")
+    st.sidebar.success("✅ Live API Connection: Active")
+    st.sidebar.info("Verified Data Sources: NCBI, Wikipedia, Google")
+
+    st.sidebar.markdown("### 🔎 Suggested Searches")
+    st.sidebar.caption("PCR • CRISPR • Glycolysis • DNA Repair • T-cell Metabolism")
     st.sidebar.divider()
 
     st.sidebar.markdown("### 🧬 Yashwant Nama")
@@ -166,15 +177,8 @@ def render_sidebar_status():
     st.sidebar.info(f"**GATE 2027:** {(gate_exam - today).days} days left")
 
     st.sidebar.divider()
-    st.sidebar.success("✅ Live API Connection: Active")
-    st.sidebar.info("Verified Data Sources: NCBI, Wikipedia, Google")
-
-    st.sidebar.divider()
     st.sidebar.markdown("### 💡 Research Tip")
     st.sidebar.info("Restriction enzymes work best at specific pH and temperature buffers.")
-
-    st.sidebar.markdown("### 🔎 Suggested Searches")
-    st.sidebar.caption("PCR • CRISPR • Glycolysis • DNA Repair • T-cell Metabolism")
 
 
 def get_secret_value(secret_name: str) -> str:
@@ -185,6 +189,9 @@ def get_secret_value(secret_name: str) -> str:
     return str(secret_value).strip()
 
 def render_bar_figure(df: pd.DataFrame, x_col: str, y_col: str, title: str):
+    if plt is None:
+        return None
+
     fig, ax = plt.subplots(figsize=(8, 4))
     ax.bar(df[x_col], df[y_col], color="#4c78a8")
     ax.set_title(title)
@@ -600,6 +607,7 @@ if load_warning:
     st.sidebar.warning(load_warning)
 
 # --- 5. SEARCH INPUT ---
+render_sidebar_status()
 query = st.sidebar.text_input("Enter Biological Term", value="Glycolysis").lower().strip()
 lab_mode = st.sidebar.toggle("Lab-Specific Mode")
 pi_name = st.sidebar.text_input("PI / Author name", value="") if lab_mode else ""
@@ -715,6 +723,7 @@ if df is not None and query:
                                             data=exp_buf,
                                             file_name=f"{sym}_expression.png",
                                             mime="image/png",
+                                            key=f"dl_expr_{i}_{j}_{pmid}_{sym}",
                                         )
 
                     if "Reading List Builder" in feature_flags:
@@ -1035,6 +1044,3 @@ if df is not None and query:
 
     else:
         st.warning(f"No matches found for '{query}'.")
-
-
-render_sidebar_status()  # Render sidebar status at bottom so search controls appear above tip

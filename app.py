@@ -1263,7 +1263,7 @@ if df is not None and query:
                             c1, c2 = st.columns(2)
                             with c1:
                                 st.write(f"**Sequence Length:** {len(cleaned)} residues")
-                             with c2:
+                            with c2:
                                  # Simple Amino Acid composition check
                                  hydrophobic = sum(cleaned.count(x) for x in "AILMFVPGW")
                                  st.write(f"**Hydrophobic Residues:** {hydrophobic} ({(hydrophobic/len(cleaned))*100:.1f}%)")

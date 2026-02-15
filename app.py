@@ -748,7 +748,7 @@ if df is not None and query:
     if not results.empty:
         if selected_page is None:
             selected_page = results["page"].iloc[0]
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs(["📖 Textbook Context", "🧠 Discovery Lab", "📚 Literature", "🎯 10 Points", "⚖️ Comparison", "🤖 AI Analyst", "🌐 Global Intelligence", "🇮🇳 Hindi Explain", "🧬 Bioinformatics", "📘 CSIR-NET/GATE", "🎯 CSIR 10-Points", "🧪 Experimental Zone"])
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12 = st.tabs(["📖 Textbook Context", "🧠 Discovery Lab", "📚 Literature", "🎯 10 Points", "⚖️ Comparison", "🤖 AI Analyst", "🌐 Global Intelligence", "🇮🇳 Hindi Explain", "🧬 Bioinformatics", "📘 CSIR-NET/GATE", "🎯 CSIR 10-Points", "🧪 Experimental Zone"])
 
         with tab1:
             st.subheader(f"Textbook Context: Page {selected_page}")

@@ -595,8 +595,6 @@ st.caption("Researcher: Yashwant Nama | Molecular Biology & Computational Resear
 if load_warning:
     st.sidebar.warning(load_warning)
 
-render_sidebar_status()
-
 # --- 5. SEARCH INPUT ---
 query = st.sidebar.text_input("Enter Biological Term", value="Glycolysis").lower().strip()
 lab_mode = st.sidebar.toggle("Lab-Specific Mode")
@@ -613,7 +611,7 @@ if df is not None and query:
 
     if not results.empty:
         st.sidebar.success(f"Found in {len(results)} pages")
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(["📖 Textbook Context", "🧠 Discovery Lab", "📚 Literature", "🎯 10 Points", "⚖️ Comparison", "🤖 AI Analyst", "🌐 Global Intelligence", "🇮🇳 Hindi Explain"])
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs(["📖 Textbook Context", "🧠 Discovery Lab", "📚 Literature", "🎯 10 Points", "⚖️ Comparison", "🤖 AI Analyst", "🌐 Global Intelligence", "🇮🇳 Hindi Explain", "📘 CSIR-NET/GATE", "🧪 Experimental Zone"])
 
         with tab1:
             selected_page = st.sidebar.selectbox("Select Page to View", results["page"].tolist())
@@ -988,6 +986,41 @@ if df is not None and query:
                         mime="text/plain",
                     )
 
+        with tab9:
+            st.subheader("📘 CSIR-NET / GATE Planner")
+            st.caption("Quick preparation tracker for life-science aspirants.")
+            col_a, col_b = st.columns(2)
+            with col_a:
+                st.markdown("#### CSIR-NET Focus")
+                st.progress(0.62, text="Syllabus coverage: 62%")
+                st.checkbox("Revise Biochemistry fundamentals", key="csir_rev_1")
+                st.checkbox("Practice 50 MCQs", key="csir_rev_2")
+                st.checkbox("Mock test + analysis", key="csir_rev_3")
+            with col_b:
+                st.markdown("#### GATE BT Focus")
+                st.progress(0.48, text="Syllabus coverage: 48%")
+                st.checkbox("Genetics + Molecular Biology", key="gate_rev_1")
+                st.checkbox("Process calculations", key="gate_rev_2")
+                st.checkbox("Previous year questions", key="gate_rev_3")
+
+        with tab10:
+            st.subheader("🧪 Experimental Zone")
+            st.caption("Prototype sandbox for rapid hypothesis testing.")
+            molecule = st.text_input("Target gene/protein/metabolite", value=query, key="exp_target")
+            intervention = st.selectbox("Intervention", ["Knockdown", "Overexpression", "Inhibitor", "CRISPR edit"], key="exp_intervention")
+            model_system = st.selectbox("Model system", ["T-cells", "HEK293", "Yeast", "Mouse"], key="exp_model")
+            if st.button("Generate Experiment Draft"):
+                st.session_state["exp_plan"] = (
+                    f"Hypothesis: Perturbing **{molecule}** via **{intervention}** in **{model_system}** will alter pathway dynamics.\n"
+                    "Readouts: qPCR, western blot, and flux proxy (lactate/ATP).\n"
+                    "Controls: non-targeting control + vehicle + baseline condition."
+                )
+            if st.session_state.get("exp_plan"):
+                st.success(st.session_state["exp_plan"])
+
 
     else:
         st.warning(f"No matches found for '{query}'.")
+
+
+render_sidebar_status()  # Render sidebar status at bottom so search controls appear above tip

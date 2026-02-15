@@ -1362,8 +1362,25 @@ if df is not None and query:
                         points = kb_row.get("Ten_Points", "No extra details available.")
                         st.write(points)
                     
+                    # Inside Tab 10...
                     if st.button("Add to Research Report", icon="➕", key="kb_report_btn"):
-                        st.toast(f"Added {kb_row.get('Topic')} to report!", icon="✅")
+                        if 'report_list' not in st.session_state:
+                            st.session_state['report_list'] = []
+                        
+                        # Get the data from the current row
+                        topic_to_add = kb_row.get("Topic", "Untitled")
+                        notes_to_add = kb_row.get("Explanation", "No notes available.")
+                    
+                        # Prevent duplicates
+                        if topic_to_add not in [item['Topic'] for item in st.session_state['report_list']]:
+                            st.session_state['report_list'].append({
+                                "Topic": topic_to_add,
+                                "Notes": notes_to_add
+                            })
+                            st.toast(f"Added {topic_to_add} to report!", icon="✅")
+                        else:
+                            st.warning("Topic already in report.")
+
 
                 with col_right:
                     # DIAGRAM BOX (Matches Image 1 layout)
@@ -1411,27 +1428,43 @@ if df is not None and query:
 # =========================
 with st.sidebar:
     st.divider()
-    st.header("📋 My Research Report")
+    st.markdown("### 📋 My Research Report")
     
-    if 'report_list' in st.session_state and st.session_state['report_list']:
-        for idx, item in enumerate(st.session_state['report_list']):
-            st.write(f"{idx+1}. {item['Topic']}")
+    # Initialize the list if it doesn't exist
+    if 'report_list' not in st.session_state:
+        st.session_state['report_list'] = []
+
+    if not st.session_state['report_list']:
+        st.info("Your report is empty. Add topics from the 'Reader' tab.")
+    else:
+        # Show each item in the report
+        for i, item in enumerate(st.session_state['report_list']):
+            # item is a dictionary: {"Topic": "...", "Notes": "..."}
+            st.write(f"{i+1}. **{item['Topic']}**")
         
-        if st.button("🗑️ Clear Report"):
+        st.write("") # Spacer
+        
+        # CLEAR REPORT BUTTON
+        if st.button("🗑️ Clear Report", use_container_width=True):
             st.session_state['report_list'] = []
             st.rerun()
-            
-        # Create the download string
-        full_report = "BIO-VERIFY RESEARCH REPORT\n" + "="*25 + "\n\n"
-        for item in st.session_state['report_list']:
-            full_report += f"TOPIC: {item['Topic']}\n{item['Notes']}\n\n" + "-"*20 + "\n"
-            
+
+        # DOWNLOAD BUTTON
+        # Convert the list to a readable text format
+        report_text = "RESEARCH REPORT\n" + "="*20 + "\n\n"
+        for i, item in enumerate(st.session_state['report_list']):
+            report_text += f"{i+1}. TOPIC: {item['Topic']}\n"
+            report_text += f"NOTES: {item['Notes']}\n"
+            report_text += "-"*20 + "\n"
+
         st.download_button(
             label="📥 Download Full Report",
-            data=full_report,
-            file_name="Bio_Research_Report.txt",
+            data=report_text,
+            file_name="research_report.txt",
             mime="text/plain",
             use_container_width=True
+        )
+
         )
     else:
         st.info("Your report is empty. Add topics from the 'Reader' tab.")

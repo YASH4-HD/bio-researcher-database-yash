@@ -697,46 +697,62 @@ if df is not None and query:
                 else:
                     st.info("No related suggestions found yet.")
 
-            # 2. Visual Knowledge Graph (RE-ENGINEERED)
+            # 2. Visual Knowledge Graph (Plotly Version - Guaranteed to Render)
             if "Visual Knowledge Graph" in feature_flags:
                 st.markdown("#### 🕸️ Visual Knowledge Graph")
                 
-                # Force fresh data for the current query
                 concepts_df = sanitize_concept_df(compute_concept_connections(results))
                 
                 if concepts_df.empty:
-                    st.warning(f"⚠️ No connections found for '{query}'. The graph requires at least two related biological terms to appear in the same sentence.")
+                    st.warning(f"⚠️ No connections found for '{query}'.")
                 else:
-                    try:
-                        # 1. Build a simplified, safer DOT string
-                        dot = "graph G {\n"
-                        dot += "  rankdir=LR;\n"  # Left to Right layout is more stable than neato
-                        dot += "  node [style=filled, fontname='Arial', fontsize=10, shape=circle, fixedsize=true, width=1.2];\n"
-                        
-                        # Central Node - use a simple ID to avoid quote issues
-                        main_node = query.replace(" ", "_").upper()
-                        dot += f'  "{main_node}" [fillcolor="#FFD700", shape=doublecircle, width=1.5];\n'
-                        
-                        # 2. Add connections
-                        for _, row in concepts_df.head(12).iterrows():
-                            a = str(row["term_a"]).replace(" ", "_")
-                            b = str(row["term_b"]).replace(" ", "_")
-                            count = int(row["co_occurrences"])
-                            
-                            # Simple color logic
-                            color = "#C1E1C1" if "ase" in a.lower() else "#d1ecff"
-                            
-                            dot += f'  "{a}" [fillcolor="{color}"];\n'
-                            dot += f'  "{a}" -- "{b}" [label="{count}"];\n'
-                        
-                        dot += "}"
-                        
-                        # 3. Render
-                        st.graphviz_chart(dot)
-                        
-                    except Exception as e:
-                        st.error(f"Visualization Engine Error: {e}")
-                        st.info("Try searching for a core metabolic term like 'Glycolysis' to reset the engine.")
+                    import plotly.graph_objects as go
+                    import networkx as nx
+
+                    # Create NetworkX graph
+                    G = nx.Graph()
+                    for _, row in concepts_df.head(15).iterrows():
+                        G.add_edge(row['term_a'], row['term_b'], weight=row['co_occurrences'])
+
+                    # Calculate layout positions
+                    pos = nx.spring_layout(G, seed=42)
+
+                    # Create Edge Traces
+                    edge_x, edge_y = [], []
+                    for edge in G.edges():
+                        x0, y0 = pos[edge[0]]
+                        x1, y1 = pos[edge[1]]
+                        edge_x.extend([x0, x1, None])
+                        edge_y.extend([y0, y1, None])
+
+                    edge_trace = go.Scatter(x=edge_x, y=edge_y, line=dict(width=1, color='#888'), hoverinfo='none', mode='lines')
+
+                    # Create Node Traces
+                    node_x, node_y, node_text, node_color = [], [], [], []
+                    for node in G.nodes():
+                        x, y = pos[node]
+                        node_x.append(x)
+                        node_y.append(y)
+                        node_text.append(f"{node}")
+                        # Color logic
+                        if node.lower() == query.lower(): node_color.append('#FFD700') # Gold
+                        elif "ase" in node.lower(): node_color.append('#C1E1C1') # Green
+                        else: node_color.append('#d1ecff') # Blue
+
+                    node_trace = go.Scatter(
+                        x=node_x, y=node_y, mode='markers+text', text=node_text, textposition="top center",
+                        marker=dict(showscale=False, color=node_color, size=25, line_width=2),
+                        hoverinfo='text'
+                    )
+
+                    # Create Figure
+                    fig = go.Figure(data=[edge_trace, node_trace],
+                                 layout=go.Layout(showlegend=False, hovermode='closest',
+                                 margin=dict(b=0,l=0,r=0,t=0),
+                                 xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                 yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)))
+                    
+                    st.plotly_chart(fig, use_container_width=True)
 
                     # --- DOWNLOAD & DATA SECTION ---
                     fig_data = concepts_df.head(10).copy()
@@ -750,6 +766,7 @@ if df is not None and query:
                     with col_raw:
                         with st.expander("📊 View Raw Data"):
                             st.dataframe(concepts_df, use_container_width=True)
+
 
 
             # 3. Metabolic Map Link

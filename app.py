@@ -1184,7 +1184,7 @@ if df is not None and query:
                         mime="text/plain",
                     )
 
-       with tab9:
+           with tab9:
                 st.subheader("🌐 Global Bioinformatics Command Center")
                 st.caption("Centralized Research Hub: Analyze sequences, visualize structures, and access primary databases.")
         

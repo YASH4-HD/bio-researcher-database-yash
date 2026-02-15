@@ -28,29 +28,52 @@ df = load_index()
 # --- IMPROVED PUBMED FUNCTION ---
 def search_pubmed(query):
     try:
-        search_term = f"{query}[Title/Abstract]"
-        handle = Entrez.esearch(db="pubmed", term=search_term, retmax=5, sort="relevance")
-        record = Entrez.read(handle)
-        handle.close()
-# --- FOOTER ---
-st.sidebar.markdown("---")
-st.sidebar.markdown("""
-**System Status:**
-- Cloud Storage: **Connected** (Cloudflare R2)
-- Database: **1.44 GB Indexed**
-- API Status: **NCBI Entrez Active**
-""")        
-        id_list = record.get("IdList", [])
+        # 1. Search for IDs
+        search_handle = Entrez.esearch(db="pubmed", term=query, retmax=5)
+        search_results = Entrez.read(search_handle)
+        search_handle.close()
+        
+        id_list = search_results.get("IdList", [])
         if not id_list:
             return None
             
-        handle = Entrez.efetch(db="pubmed", id=id_list, rettype="summary", retmode="xml")
-        details = Entrez.read(handle)
-        handle.close()
-        return details.get('DocSum', [])
+        # 2. Fetch Summaries
+        summary_handle = Entrez.esummary(db="pubmed", id=",".join(id_list))
+        # Use a more flexible parser
+        summaries = Entrez.read(summary_handle)
+        summary_handle.close()
+        
+        return summaries
     except Exception as e:
-        st.error(f"PubMed Error: {e}")
+        st.error(f"NCBI Connection Error: {e}")
         return None
+
+# --- UPDATE THE DISPLAY PART IN YOUR MAIN CODE ---
+if st.button(f"Fetch Latest Research for '{query}'"):
+    with st.spinner("Connecting to NCBI..."):
+        data = search_pubmed(query)
+        if data:
+            # Entrez.read returns a list-like object called 'DocSum'
+            for doc in data:
+                try:
+                    # In esummary, the ID is the key
+                    pmid = doc.get('Id', 'Unknown')
+                    # Titles are stored in a list of items
+                    title = "Untitled Research Paper"
+                    pub_date = "Date N/A"
+                    
+                    for item in doc:
+                        if item == 'Title': title = doc[item]
+                        if item == 'PubDate': pub_date = doc[item]
+                    
+                    st.markdown(f"**{title}**")
+                    st.write(f"📅 {pub_date} | [PMID: {pmid}](https://pubmed.ncbi.nlm.nih.gov/{pmid}/)")
+                    st.write("---")
+                except:
+                    continue 
+        else:
+            st.warning(f"No results found on PubMed for '{query}'. Try a simpler term.")
+
 
 # --- UI HEADER ---
 st.title("🧬 BioVisual Search Engine")

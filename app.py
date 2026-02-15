@@ -1601,13 +1601,14 @@ with st.sidebar:
         st.divider()
         st.subheader("📝 Export Research")
 
-        # Formatting decimals safely
-        tm_display = f"{tm:.2f}" if ('tm' in locals() and isinstance(tm, (int, float))) else "N/A"
-        gc_display = f"{gc_content:.2f}" if ('gc_content' in locals() and isinstance(gc_content, (int, float))) else "N/A"
+        # 1. Format numbers safely
+        tm_val = f"{tm:.2f}" if ('tm' in locals() and isinstance(tm, (int, float))) else "N/A"
+        gc_val = f"{gc_content:.2f}" if ('gc_content' in locals() and isinstance(gc_content, (int, float))) else "N/A"
+        curr_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-        # Creating the report string
+        # 2. Create the report string (Ensure f""" starts the block and """ ends it)
         summary_text = f"""# 🧬 BioVisual Research Report
-**Generated on:** {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Generated on:** {curr_time}
 
 ## 🔍 Target Analysis: {query if 'query' in locals() else 'N/A'}
 - **Sequence Type:** {seq_type if 'seq_type' in locals() else 'N/A'}
@@ -1615,20 +1616,19 @@ with st.sidebar:
 
 ## 🧪 Experimental Design
 - **Primer:** `{primer_seq if 'primer_seq' in locals() else 'N/A'}`
-- **Melting Temp (Tm):** {tm_display} °C
-- **GC Content:** {gc_display}%
+- **Melting Temp (Tm):** {tm_val} °C
+- **GC Content:** {gc_val}%
 
 ## 📝 Experiment Plan
 {st.session_state.get('exp_plan', 'No plan generated')}
 """
 
-        # The Download Button
+        # 3. Download Button
         st.download_button(
             label="Download Research Report",
             data=summary_text,
-            file_name=f"Research_Report_{query if 'query' in locals() else 'Export'}.md",
+            file_name="BioVisual_Report.md",
             mime="text/markdown"
         )
-
 
 

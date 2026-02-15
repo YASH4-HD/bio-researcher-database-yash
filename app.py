@@ -1597,15 +1597,15 @@ with st.sidebar:
     st.sidebar.markdown("### 💡 Research Tip")
     st.sidebar.info("Focus on molecular interactions and regulatory nodes relevant to CSIR-NET Part C.")
     # --- SIDEBAR RESEARCH LOG ---
-    with st.sidebar:
+       with st.sidebar:
         st.divider()
         st.subheader("📝 Export Research")
-        
-        # Formatting the decimals safely
+
+        # Formatting decimals safely
         tm_display = f"{tm:.2f}" if ('tm' in locals() and isinstance(tm, (int, float))) else "N/A"
         gc_display = f"{gc_content:.2f}" if ('gc_content' in locals() and isinstance(gc_content, (int, float))) else "N/A"
-        
-        # Creating the markdown content
+
+        # Creating the report string
         summary_text = f"""# 🧬 BioVisual Research Report
 **Generated on:** {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
@@ -1622,14 +1622,13 @@ with st.sidebar:
 {st.session_state.get('exp_plan', 'No plan generated')}
 """
 
+        # The Download Button
+        st.download_button(
+            label="Download Research Report",
+            data=summary_text,
+            file_name=f"Research_Report_{query if 'query' in locals() else 'Export'}.md",
+            mime="text/markdown"
+        )
 
-        
-    # The Download Button
-    st.download_button(
-    label="Download .md File",
-    data=summary_text,
-    file_name="BioVisual_Research_Report.md",
-    mime="text/markdown"
-    )
 
 

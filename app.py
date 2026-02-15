@@ -357,6 +357,20 @@ def sanitize_concept_df(concept_df: pd.DataFrame):
     return concept_df[mask].copy()
 
 
+def validate_api_key(provider: str, api_key: str):
+    key = (api_key or "").strip()
+    if not key:
+        return False, "Please provide an API key."
+    if provider == "Groq":
+        if not key.startswith("gsk_"):
+            return False, "Groq keys should start with `gsk_`."
+        if len(key) < 30:
+            return False, "Groq key looks too short. Please paste the full key from Groq Console."
+    if provider == "OpenAI" and not key.startswith("sk-"):
+        return False, "OpenAI keys should start with `sk-`."
+    return True, ""
+
+
 def call_ai_analyst(provider: str, api_key: str, prompt: str, model_name: str):
     headers = {"Content-Type": "application/json"}
     if provider == "OpenAI":
@@ -397,6 +411,12 @@ def call_ai_analyst(provider: str, api_key: str, prompt: str, model_name: str):
         except Exception:
             body = ""
         if provider == "Groq" and exc.code == 403:
+            if "1010" in body:
+                return (
+                    "Groq API returned 403 with error code 1010, which typically means an invalid/revoked API key. "
+                    "Please regenerate a fresh key in Groq Console and try again."
+                    + (f"\nServer details: {body[:280]}" if body else "")
+                )
             return (
                 "Groq API returned 403 (forbidden). This usually means: invalid/expired key, "
                 "model access restrictions, or disabled project billing. "
@@ -700,24 +720,41 @@ if df is not None and query:
 
             user_prompt = st.text_area("Prompt", key="ai_prompt", height=120)
 
-            if st.button("Run AI Analysis"):
-                if not api_key:
-                    st.warning("Please provide an API key.")
-                else:
-                    assembled_prompt = (
-                        f"Topic: {query}\n\n"
-                        + "10 points:\n- "
-                        + "\n- ".join(context_points[:10])
-                        + "\n\n"
-                        + f"Expression context:\n{expression_context or 'Not available'}\n\n"
-                        + f"User instruction:\n{user_prompt}"
-                    )
-                    with st.spinner("Calling AI provider..."):
-                        response = call_ai_analyst(provider, api_key, assembled_prompt, model_name)
-                    st.markdown("### AI Analysis")
-                    st.write(response)
-                    if provider == "Groq" and "403" in str(response):
-                        st.info("Tip: regenerate an API key in Groq Console and test with model `llama-3.1-8b-instant`.")
+            col_run, col_test = st.columns([1, 1])
+            with col_test:
+                if st.button("Test API Connection"):
+                    ok, msg = validate_api_key(provider, api_key)
+                    if not ok:
+                        st.warning(msg)
+                    else:
+                        with st.spinner("Testing provider connection..."):
+                            test_resp = call_ai_analyst(provider, api_key, "Reply with OK only.", model_name)
+                        if str(test_resp).strip().lower().startswith("ok"):
+                            st.success("Connection looks good ✅")
+                        else:
+                            st.info(test_resp)
+
+            with col_run:
+                if st.button("Run AI Analysis"):
+                    ok, msg = validate_api_key(provider, api_key)
+                    if not ok:
+                        st.warning(msg)
+                    else:
+                        assembled_prompt = (
+                            f"Topic: {query}\n\n"
+                            + "10 points:\n- "
+                            + "\n- ".join(context_points[:10])
+                            + "\n\n"
+                            + f"Expression context:\n{expression_context or 'Not available'}\n\n"
+                            + f"User instruction:\n{user_prompt}"
+                        )
+                        with st.spinner("Calling AI provider..."):
+                            response = call_ai_analyst(provider, api_key, assembled_prompt, model_name)
+                        st.markdown("### AI Analysis")
+                        st.write(response)
+                        if provider == "Groq" and ("403" in str(response) or "1010" in str(response)):
+                            st.info("Tip: this usually indicates invalid/revoked key. Regenerate key in Groq Console and retry with `llama-3.1-8b-instant`.")
+
 
     else:
         st.warning(f"No matches found for '{query}'.")

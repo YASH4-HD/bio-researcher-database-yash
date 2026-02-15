@@ -370,8 +370,9 @@ def call_ai_analyst(provider: str, api_key: str, prompt: str, model_name: str):
     elif provider == "Groq":
         url = "https://api.groq.com/openai/v1/chat/completions"
         headers["Authorization"] = f"Bearer {api_key}"
+        selected_model = model_name or "llama-3.1-8b-instant"
         payload = {
-            "model": model_name or "llama-3.1-8b-instant",
+            "model": selected_model,
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.3,
         }
@@ -390,7 +391,19 @@ def call_ai_analyst(provider: str, api_key: str, prompt: str, model_name: str):
             return data[0].get("generated_text", "No response")
         return str(data)
     except error.HTTPError as exc:
-        return f"API error ({exc.code}). Check key/model/provider settings."
+        body = ""
+        try:
+            body = exc.read().decode("utf-8", errors="ignore")
+        except Exception:
+            body = ""
+        if provider == "Groq" and exc.code == 403:
+            return (
+                "Groq API returned 403 (forbidden). This usually means: invalid/expired key, "
+                "model access restrictions, or disabled project billing. "
+                "Try another Groq model (e.g., llama-3.1-8b-instant) and verify your key in Groq Console."
+                + (f"\nServer details: {body[:280]}" if body else "")
+            )
+        return f"API error ({exc.code}). Check key/model/provider settings." + (f"\nServer details: {body[:280]}" if body else "")
     except Exception as exc:
         return f"AI request failed: {exc}"
 
@@ -634,14 +647,19 @@ if df is not None and query:
             st.caption("Use API key in-session only. No key is stored by this app.")
 
             provider = st.selectbox("Provider", ["Groq", "OpenAI", "HuggingFace"])
-            api_key = st.text_input("Enter your API key", type="password")
+            api_key = st.text_input("Enter your API key", type="password", help="Use a Groq/OpenAI/HuggingFace key. This field is masked and only kept in-session.")
 
             if provider == "Groq":
                 model_name = st.selectbox(
                     "Groq model",
-                    ["llama3-70b-8192", "llama3-8b-8192"],
+                    [
+                        "llama-3.1-8b-instant",
+                        "llama-3.3-70b-versatile",
+                        "llama3-70b-8192",
+                        "llama3-8b-8192",
+                    ],
                     index=0,
-                    help="70B = deeper biology reasoning, 8B = faster formatting/cleanup.",
+                    help="Try llama-3.1-8b-instant first for best compatibility; 70B models are stronger but may have access limits.",
                 )
             else:
                 model_name = st.text_input("Model (optional)", value="")
@@ -698,6 +716,8 @@ if df is not None and query:
                         response = call_ai_analyst(provider, api_key, assembled_prompt, model_name)
                     st.markdown("### AI Analysis")
                     st.write(response)
+                    if provider == "Groq" and "403" in str(response):
+                        st.info("Tip: regenerate an API key in Groq Console and test with model `llama-3.1-8b-instant`.")
 
     else:
         st.warning(f"No matches found for '{query}'.")

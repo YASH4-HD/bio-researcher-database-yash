@@ -689,24 +689,41 @@ if df is not None and query:
             concepts_df = sanitize_concept_df(compute_concept_connections(results))
             if "Visual Knowledge Graph" in feature_flags and not concepts_df.empty:
                 st.markdown("#### 🕸️ Visual Knowledge Graph")
-                # Increase head to 20 to show more bubbles
-                top_concepts = concepts_df.head(20) 
-                dot = "graph G {\nlayout=neato; overlap=false; splines=true; node [fontname='Helvetica', fontsize=12];\n"
-                dot += f'"{query}" [shape=doublecircle, style="filled", fillcolor="#FFD700", color="#DAA520", penwidth=3];\n'
-                # Logic to color 'protein' or 'enzyme' differently
+                
+                # 1. Start the DOT string
+                dot = "graph G {\n"
+                dot += "  layout=neato; overlap=false; splines=true;\n"
+                dot += "  node [fontname='Helvetica', fontsize=12, style=filled];\n"
+                
+                # 2. Add the Central Node (The Query)
+                # We use repr() or simple strings to avoid quote collisions
+                safe_query = query.replace('"', '')
+                dot += f'  "{safe_query}" [shape=doublecircle, fillcolor="#FFD700", color="#DAA520", penwidth=3];\n'
+                
+                # 3. Add the Connections
+                top_concepts = concepts_df.head(20)
                 for _, row in top_concepts.iterrows():
-                    a, b = row["term_a"], row["term_b"]
-                    # Highlight important nodes
-                    if a in ["protein", "enzyme", "gene"]:
-                        dot += f'"{a}" [style=filled, fillcolor="#C1E1C1"];\n'
-                    if b in ["protein", "enzyme", "gene"]:
-                        dot += f'"{b}" [style=filled, fillcolor="#C1E1C1"];\n'
-                    dot += f'"{a}" -- "{b}" [label="{int(row["co_occurrences"])}", color="#7aa6d8", penwidth={min(row["co_occurrences"]/2, 5)}];\n'
+                    term_a = str(row["term_a"]).replace('"', '')
+                    term_b = str(row["term_b"]).replace('"', '')
+                    weight = int(row["co_occurrences"])
+                    
+                    # Color logic
+                    color = "#C1E1C1" if term_a in ["protein", "enzyme", "gene"] else "#d1ecff"
+                    dot += f'  "{term_a}" [fillcolor="{color}"];\n'
+                    dot += f'  "{term_b}" [fillcolor="#d1ecff"];\n'
+                    
+                    # Edge logic
+                    penwidth = min(weight / 2, 5)
+                    dot += f'  "{term_a}" -- "{term_b}" [label="{weight}", color="#7aa6d8", penwidth={penwidth}];\n'
+                
                 dot += "}"
                 
-                    
-               
-                st.graphviz_chart(dot)
+                # 4. Render with error handling
+                try:
+                    st.graphviz_chart(dot)
+                except Exception as e:
+                    st.error(f"Graphviz rendering error: {e}")
+
                 st.caption("Edge weight = term co-occurrence frequency within indexed textbook content.")
 
                 fig_data = concepts_df.head(10).copy()

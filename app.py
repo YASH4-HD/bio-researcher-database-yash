@@ -1244,16 +1244,17 @@ if df is not None and query:
 
             with bio_sub1:
                 st.markdown("#### 🔬 Protein/DNA Sequence Analyzer")
-                seq_input = st.text_area("Paste FASTA sequence or raw string", height=150, placeholder="MTVKVGINGFGRIGR...")
+                seq_input = st.text_area("Paste FASTA sequence", height=150)
                 if seq_input:
-                    # Use the new cleaning function
-                    cleaned = clean_sequence(seq_input)
+                    # FIX: Ensure the variable name matches the function name
+                    cleaned = clean_sequence(seq_input) 
                     seq_type = infer_sequence_type(cleaned)
                     st.info(f"Detected Type: **{seq_type}**")
                     
                     if seq_type == "Protein":
                         try:
-                            analysed_seq = ProteinAnalysis(clean_seq)
+                            # Using Biopython's ProteinAnalysis
+                            analysed_seq = ProteinAnalysis(cleaned)
                             col1, col2, col3 = st.columns(3)
                             col1.metric("Molecular Weight", f"{analysed_seq.molecular_weight():.2f} Da")
                             col2.metric("Isoelectric Point", f"{analysed_seq.isoelectric_point():.2f}")
@@ -1261,7 +1262,8 @@ if df is not None and query:
                         except Exception as e:
                             st.error(f"Analysis error: {e}")
                     elif seq_type == "DNA/RNA":
-                        st.metric("GC Content", f"{gc_percent(clean_seq):.2f}%")
+                        from Bio.SeqUtils import gc_fraction
+                        st.metric("GC Content", f"{gc_fraction(cleaned)*100:.2f}%")
 
             with bio_sub2:
                 st.markdown("#### 💎 3D Molecular Visualization")

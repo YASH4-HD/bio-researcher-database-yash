@@ -221,8 +221,7 @@ with st.sidebar:
             </div>
         </div>
     """, unsafe_allow_html=True)
-    st.sidebar.markdown("### 💡 Research Tip")
-    st.sidebar.info("Restriction enzymes work best at specific pH and temperature buffers.")
+    
 
 
 def get_secret_value(secret_name: str) -> str:
@@ -1276,3 +1275,5 @@ if df is not None and query:
 
     else:
         st.warning(f"No matches found for '{query}'.")
+    st.sidebar.markdown("### 💡 Research Tip")
+    st.sidebar.info("Restriction enzymes work best at specific pH and temperature buffers.")

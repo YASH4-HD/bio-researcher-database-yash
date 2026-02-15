@@ -1242,8 +1242,9 @@ if df is not None and query:
                 st.markdown("#### 🔬 Protein/DNA Sequence Analyzer")
                 seq_input = st.text_area("Paste FASTA sequence or raw string", height=150, placeholder="MTVKVGINGFGRIGR...")
                 if seq_input:
-                    clean_seq = "".join(seq_input.split()).upper()
-                    seq_type = infer_sequence_type(clean_seq)
+                    # Use the new cleaning function
+                    cleaned = clean_sequence(seq_input)
+                    seq_type = infer_sequence_type(cleaned)
                     st.info(f"Detected Type: **{seq_type}**")
                     
                     if seq_type == "Protein":

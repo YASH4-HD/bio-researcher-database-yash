@@ -1251,24 +1251,21 @@ if df is not None and query:
                     elif portal_choice == "AlphaFold DB":
                         target_url = f"https://alphafold.ebi.ac.uk/search/text/{quote_plus(portal_query)}"
         
-                    st.link_button(f"🚀 Open {portal_choice} in New Tab", target_url, use_container_width=True)
-                    
-                    embeddable_portals = {"RCSB PDB", "UniProt"}
-                if portal_choice in embeddable_portals:
-                    st.components.v1.iframe(target_url, height=800, scrolling=True)
-                else:
-                    st.warning(f"{portal_choice} blocks embedding. Please use the 'Open in New Tab' button above.")
+           # 1. Open Button
+            st.link_button(f"🚀 Open {portal_choice} in New Tab", target_url, use_container_width=True)
 
-                st.components.v1.iframe(target_url, height=1000, scrolling=True)
-                st.caption("Note: Some data-heavy pages may take a few seconds to render inside the frame.")
-                else:
-                    st.warning(
-                    f"{portal_choice} often blocks iframe embedding (security headers). "
-                    "Use 'Open in New Tab' for reliable access."
-                )
-                st.markdown("#### Quick external shortcuts")
-                st.link_button("Open search result", target_url, use_container_width=True)
-
+            # 2. Embedding Logic
+            embeddable_portals = {"RCSB PDB", "UniProt"}
+            
+            if portal_choice in embeddable_portals:
+                st.components.v1.iframe(target_url, height=800, scrolling=True)
+                st.caption("Note: Some data-heavy pages may take a few seconds to render.")
+            else:
+                st.warning(f"{portal_choice} blocks embedding for security. Please use the 'Open in New Tab' button above.")
+                st.markdown("#### 🔗 Quick Shortcuts")
+                st.link_button(f"Search {portal_choice} directly", target_url, use_container_width=True)
+            
+            st.divider() # Adds a clean line before Tab 10 starts
 
         with tab10:
             st.subheader("📘 CSIR-NET / GATE Planner")

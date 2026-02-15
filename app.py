@@ -1282,7 +1282,7 @@ model_name = st.text_input("Model (optional)", value="")
             st.markdown("#### 🔬 Technical Research (NCBI)")
 /workspace/bio-researcher-database-yash$ /bin/bash -lc sed -n '1261,1324p' app.py
 }
-                if portal_choice == "RCSB PDB":
+if portal_choice == "RCSB PDB":
     rcsb_request = {
         "query": {
             "type": "terminal",
@@ -1291,7 +1291,13 @@ model_name = st.text_input("Model (optional)", value="")
                 "value": portal_query
             }
         },
-        "return_type": "entry"
+        "return_type": "entry",
+        "request_options": {
+            "pager": {
+                "start": 0,
+                "rows": 25
+            }
+        }
     }
 
     target_url = (

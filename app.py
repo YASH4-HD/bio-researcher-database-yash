@@ -165,9 +165,6 @@ def render_sidebar_status():
 
     st.sidebar.markdown("### 🔎 Suggested Searches")
     st.sidebar.caption("PCR • CRISPR • Glycolysis • DNA Repair • T-cell Metabolism")
-    st.sidebar.divider()
-    st.sidebar.markdown("### 🔬 Search Workspace")
-
     st.sidebar.markdown("### 🧬 Yashwant Nama")
     st.sidebar.info("Developer & Researcher\n\n**Bio-Informatics & Genetics**")
     c1, c2 = st.sidebar.columns(2)
@@ -680,25 +677,17 @@ with st.sidebar.expander("🔬 Search Workspace", expanded=True):
         if not sidebar_results.empty:
             st.success(f"Found in {len(sidebar_results)} pages")
             selected_page = st.selectbox("Select Page to View", sidebar_results["page"].tolist())
-query = st.sidebar.text_input("Enter Biological Term", value="Glycolysis").lower().strip()
-lab_mode = st.sidebar.toggle("Lab-Specific Mode")
-pi_name = st.sidebar.text_input("PI / Author name", value="") if lab_mode else ""
-feature_flags = st.sidebar.multiselect(
-    "Explore Unique Feature Additions",
-    ["Semantic Query Expansion", "Semantic Bridge", "Visual Knowledge Graph", "Reading List Builder", "Metabolic Map Link"],
-    default=["Semantic Query Expansion", "Semantic Bridge", "Visual Knowledge Graph", "Metabolic Map Link"],
-)
 
 # --- 6. MAIN LOGIC ---
 if df is not None and query:
     results = df[df["text_content"].str.contains(query, na=False)] if "text_content" in df.columns else df
 
     if not results.empty:
-        st.sidebar.success(f"Found in {len(results)} pages")
+        if selected_page is None:
+            selected_page = results["page"].iloc[0]
         tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs(["📖 Textbook Context", "🧠 Discovery Lab", "📚 Literature", "🎯 10 Points", "⚖️ Comparison", "🤖 AI Analyst", "🌐 Global Intelligence", "🇮🇳 Hindi Explain", "🧬 Bioinformatics", "📘 CSIR-NET/GATE", "🧪 Experimental Zone"])
 
         with tab1:
-            selected_page = st.sidebar.selectbox("Select Page to View", results["page"].tolist())
             st.subheader(f"Textbook Context: Page {selected_page}")
             full_url = f"{R2_URL}/full_pages/page_{selected_page}.png"
             with st.container(border=True):
@@ -727,69 +716,79 @@ if df is not None and query:
                 if concepts_df.empty:
                     st.warning(f"⚠️ No connections found for '{query}'.")
                 else:
-                    import plotly.graph_objects as go
-                    import networkx as nx
+                    if not HAS_PLOTLY or not HAS_NETWORKX:
+                        st.warning("Visual Knowledge Graph requires optional dependencies `plotly` and `networkx`.")
+                        st.info("Install with: `pip install plotly networkx`")
+                    else:
+                        import plotly.graph_objects as go
+                        import networkx as nx
 
-                    # Create NetworkX graph
-                    G = nx.Graph()
-                    for _, row in concepts_df.head(15).iterrows():
-                        G.add_edge(row['term_a'], row['term_b'], weight=row['co_occurrences'])
-
-                    # Calculate layout positions
-                    pos = nx.spring_layout(G, seed=42)
-
-                    # Create Edge Traces
-                    edge_x, edge_y = [], []
-                    for edge in G.edges():
-                        x0, y0 = pos[edge[0]]
-                        x1, y1 = pos[edge[1]]
-                        edge_x.extend([x0, x1, None])
-                        edge_y.extend([y0, y1, None])
-
-                    edge_trace = go.Scatter(x=edge_x, y=edge_y, line=dict(width=1, color='#888'), hoverinfo='none', mode='lines')
-
-                    # Create Node Traces
-                    node_x, node_y, node_text, node_color = [], [], [], []
-                    for node in G.nodes():
-                        x, y = pos[node]
-                        node_x.append(x)
-                        node_y.append(y)
-                        node_text.append(f"{node}")
-                        # Color logic
-                        if node.lower() == query.lower(): node_color.append('#FFD700') # Gold
-                        elif "ase" in node.lower(): node_color.append('#C1E1C1') # Green
-                        else: node_color.append('#d1ecff') # Blue
-
-                    node_trace = go.Scatter(
-                        x=node_x, y=node_y, mode='markers+text', text=node_text, textposition="top center",
-                        marker=dict(showscale=False, color=node_color, size=25, line_width=2),
-                        hoverinfo='text'
-                    )
-
-                    # Create Figure
-                    fig = go.Figure(data=[edge_trace, node_trace],
-                                 layout=go.Layout(showlegend=False, hovermode='closest',
-                                 margin=dict(b=0,l=0,r=0,t=0),
-                                 xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                                 yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)))
-                    
-                    st.plotly_chart(fig, use_container_width=True)
-
-                    # --- DOWNLOAD & DATA SECTION ---
-                    fig_data = concepts_df.head(10).copy()
-                    fig_data["edge"] = fig_data["term_a"] + " ↔ " + fig_data["term_b"]
-                    fig_buf = render_bar_figure(fig_data, "edge", "co_occurrences", f"Weights: {query}")
-                    
-                    col_dl, col_raw = st.columns([1, 1])
-                    with col_dl:
-                        if fig_buf:
-                            st.download_button("💾 Download Graph PNG", fig_buf, f"{query}_graph.png", "image/png", use_container_width=True)
-                    with col_raw:
-                        with st.expander("📊 View Raw Data"):
-                            st.dataframe(concepts_df, use_container_width=True)
-
-
-
+                        # Create NetworkX graph
+                        G = nx.Graph()
+                        for _, row in concepts_df.head(15).iterrows():
+                            G.add_edge(row['term_a'], row['term_b'], weight=row['co_occurrences'])
+    
+                        # Calculate layout positions
+                        pos = nx.spring_layout(G, k=0.5, iterations=50, seed=42)
+    
+                        # Create Edge Traces
+                        edge_x, edge_y = [], []
+                        for edge in G.edges():
+                            x0, y0 = pos[edge[0]]
+                            x1, y1 = pos[edge[1]]
+                            edge_x.extend([x0, x1, None])
+                            edge_y.extend([y0, y1, None])
+    
+                        edge_trace = go.Scatter(x=edge_x, y=edge_y, line=dict(width=1, color='#888'), hoverinfo='none', mode='lines')
+    
+                        # Create Node Traces
+                        node_x, node_y, node_text, node_color, node_hover_text = [], [], [], [], []
+                        for node in G.nodes():
+                            x, y = pos[node]
+                            node_x.append(x)
+                            node_y.append(y)
+                            node_text.append(f"{node}")
+                            count_a = concepts_df[concepts_df["term_a"] == node]["co_occurrences"].sum()
+                            count_b = concepts_df[concepts_df["term_b"] == node]["co_occurrences"].sum()
+                            total = int(count_a + count_b)
+                            node_hover_text.append(f"Node: {node}<br>Co-occurrences: {total}")
+                            # Color logic
+                            if node.lower() == query.lower(): node_color.append('#FFD700') # Gold
+                            elif "ase" in node.lower(): node_color.append('#C1E1C1') # Green
+                            else: node_color.append('#d1ecff') # Blue
+    
+                        node_trace = go.Scatter(
+                            x=node_x, y=node_y, mode='markers+text', text=node_text, textposition="top center",
+                            hovertext=node_hover_text,
+                            marker=dict(showscale=False, color=node_color, size=25, line_width=2),
+                            hoverinfo='text'
+                        )
+    
+                        # Create Figure
+                        fig = go.Figure(data=[edge_trace, node_trace],
+                                     layout=go.Layout(showlegend=False, hovermode='closest',
+                                     margin=dict(b=0,l=0,r=0,t=0),
+                                     height=520,
+                                     xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                     yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="x", scaleratio=1)))
+                        
+                        st.plotly_chart(fig, use_container_width=True)
+    
+                        # --- DOWNLOAD & DATA SECTION ---
+                        fig_data = concepts_df.head(10).copy()
+                        fig_data["edge"] = fig_data["term_a"] + " ↔ " + fig_data["term_b"]
+                        fig_buf = render_bar_figure(fig_data, "edge", "co_occurrences", f"Weights: {query}")
+                        
+                        col_dl, col_raw = st.columns([1, 1])
+                        with col_dl:
+                            if fig_buf:
+                                st.download_button("⬇️ Download Analysis PNG", fig_buf, f"{query}_analysis.png", "image/png", use_container_width=True)
+                        with col_raw:
+                            with st.expander("📊 View Connection Table"):
+                                st.dataframe(concepts_df, use_container_width=True)
+    
+    
+    
             # 3. Metabolic Map Link
             if "Metabolic Map Link" in feature_flags and is_metabolite_like(query):
                 st.markdown("#### 🧭 Metabolic Map Shortcut")
@@ -1163,7 +1162,7 @@ if df is not None and query:
                 if len(portal_query) == 4: # Likely a PDB ID (e.g., 6MOJ)
                     target_url = f"https://www.rcsb.org/structure/{portal_query}"
                 else:
-                    target_url = f"https://www.rcsb.org/search?request=%7B%22query%22%3A%7B%22type%22%3A%22terminal%22%2C%22service%22%3A%22text%22%2C%22parameters%22%3A%7B%22attribute%22%3A%22rcsb_entry_info.selected_polymer_entity_type%22%2C%22operator%22%3A%22exact_match%22%2C%22value%22%3A%22Protein%22%7D%7D%7D"
+                    target_url = f"https://www.rcsb.org/search?query={quote_plus(portal_query)}"
             
             elif portal_choice == "UniProt":
                 target_url = f"https://www.uniprot.org/uniprotkb?query={quote_plus(portal_query)}"
@@ -1175,7 +1174,7 @@ if df is not None and query:
                 target_url = f"https://www.ncbi.nlm.nih.gov/structure/?term={quote_plus(portal_query)}"
             
             elif portal_choice == "AlphaFold DB":
-                target_url = f"https://alphafold.ebi.ac.uk/search/text?q={quote_plus(portal_query)}"
+                target_url = f"https://alphafold.ebi.ac.uk/search/text/{quote_plus(portal_query)}"
 
             # 3. Enhanced UI for the Portal
             st.markdown(f"### 🔍 {portal_choice} Viewer: `{portal_query.upper()}`")
@@ -1186,11 +1185,18 @@ if df is not None and query:
             with c2:
                 st.link_button("🚀 Open in New Tab", target_url, use_container_width=True)
 
-            # 4. The Large-Scale Iframe
-            # Height=1200 ensures the full page is visible without internal scrolling lag
-            st.components.v1.iframe(target_url, height=1200, scrolling=True)
-
-            st.caption("Note: Some data-heavy pages may take a few seconds to render inside the frame.")
+            # 4. Embed only for portals that allow iframes.
+            embeddable_portals = {"RCSB PDB", "UniProt"}
+            if portal_choice in embeddable_portals:
+                st.components.v1.iframe(target_url, height=1000, scrolling=True)
+                st.caption("Note: Some data-heavy pages may take a few seconds to render inside the frame.")
+            else:
+                st.warning(
+                    f"{portal_choice} often blocks iframe embedding (security headers). "
+                    "Use 'Open in New Tab' for reliable access."
+                )
+                st.markdown("#### Quick external shortcuts")
+                st.link_button("Open search result", target_url, use_container_width=True)
 
 
         with tab10:

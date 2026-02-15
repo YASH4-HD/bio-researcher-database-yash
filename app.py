@@ -1394,8 +1394,7 @@ if df is not None and query:
                         
                         # Full view button
                         st.link_button("🔍 View Full Image", full_img_url, use_container_width=True)
-
-           with tab11:
+        with tab11:
             st.header("🧠 CSIR-NET / GATE: 10 Key Exam Points")
             
             # Use the dataframe loaded from knowledge_base.csv

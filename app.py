@@ -1184,34 +1184,34 @@ if df is not None and query:
                         mime="text/plain",
                     )
 
-           with tab9:
-                st.subheader("🌐 Global Bioinformatics Command Center")
-                st.caption("Centralized Research Hub: Analyze sequences, visualize structures, and access primary databases.")
+        with tab9:
+            st.subheader("🌐 Global Bioinformatics Command Center")
+            st.caption("Centralized Research Hub: Analyze sequences, visualize structures, and access primary databases.")
         
-                # Create Sub-tabs inside Tab 9
-                bio_sub1, bio_sub2, bio_sub3 = st.tabs(["🧬 Sequence Analysis", "💎 3D Structure", "🔍 Database Portal"])
+            # Create Sub-tabs inside Tab 9
+            bio_sub1, bio_sub2, bio_sub3 = st.tabs(["🧬 Sequence Analysis", "💎 3D Structure", "🔍 Database Portal"])
         
-                with bio_sub1:
-                    st.markdown("#### 🔬 Protein/DNA Sequence Analyzer")
-                    seq_input = st.text_area("Paste FASTA sequence or raw string", height=150, help="Analyze molecular weight, PI, and GC content.")
-                    if seq_input:
-                        clean_seq = "".join(seq_input.split()).upper()
-                        seq_type = infer_sequence_type(clean_seq)
-                        st.info(f"Detected Type: **{seq_type}**")
+            with bio_sub1:
+                st.markdown("#### 🔬 Protein/DNA Sequence Analyzer")
+                seq_input = st.text_area("Paste FASTA sequence or raw string", height=150, help="Analyze molecular weight, PI, and GC content.")
+                if seq_input:
+                    clean_seq = "".join(seq_input.split()).upper()
+                    seq_type = infer_sequence_type(clean_seq)
+                    st.info(f"Detected Type: **{seq_type}**")
                         
-                        if seq_type == "Protein":
-                            try:
-                                analysed_seq = ProteinAnalysis(clean_seq)
-                                col1, col2, col3 = st.columns(3)
-                                col1.metric("Molecular Weight", f"{analysed_seq.molecular_weight():.2f} Da")
-                                col2.metric("Isoelectric Point", f"{analysed_seq.isoelectric_point():.2f}")
-                                col3.metric("Aromaticity", f"{analysed_seq.aromaticity():.2f}")
-                            except Exception as e:
-                                st.error(f"Analysis error: {e}")
-                        elif seq_type == "DNA/RNA":
-                            st.metric("GC Content", f"{gc_percent(clean_seq):.2f}%")
-                            if st.button("Calculate Primer Tm (Wallace)"):
-                                st.success(f"Estimated Tm: {wallace_tm(clean_seq)}°C")
+                    if seq_type == "Protein":
+                        try:
+                            analysed_seq = ProteinAnalysis(clean_seq)
+                            col1, col2, col3 = st.columns(3)
+                            col1.metric("Molecular Weight", f"{analysed_seq.molecular_weight():.2f} Da")
+                            col2.metric("Isoelectric Point", f"{analysed_seq.isoelectric_point():.2f}")
+                            col3.metric("Aromaticity", f"{analysed_seq.aromaticity():.2f}")
+                        except Exception as e:
+                            st.error(f"Analysis error: {e}")
+                    elif seq_type == "DNA/RNA":
+                        st.metric("GC Content", f"{gc_percent(clean_seq):.2f}%")
+                        if st.button("Calculate Primer Tm (Wallace)"):
+                            st.success(f"Estimated Tm: {wallace_tm(clean_seq)}°C")
         
                 with bio_sub2:
                     st.markdown("#### 💎 3D Molecular Visualization")

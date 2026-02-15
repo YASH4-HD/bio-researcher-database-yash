@@ -700,17 +700,32 @@ def search_pubmed(search_query, author_filter=""):
 
 
 def clean_sequence(raw_seq: str) -> str:
-    return "".join(raw_seq.upper().split())
-
+    # Remove the FASTA header line (starts with >) if it exists
+    lines = raw_seq.strip().splitlines()
+    if lines and lines[0].startswith(">"):
+        actual_sequence = "".join(lines[1:])
+    else:
+        actual_sequence = "".join(lines)
+    
+    # Remove all spaces, numbers, and newlines
+    return "".join(actual_sequence.upper().split())
 
 def infer_sequence_type(seq: str) -> str:
+    if not seq:
+        return "Unknown"
+    
     dna_chars = set("ACGTUN")
+    # Amino acids including common ones
     prot_chars = set("ABCDEFGHIKLMNPQRSTVWXYZ")
     chars = set(seq)
-    if chars and chars.issubset(dna_chars):
+    
+    # If it only contains ACGTUN, it's likely DNA/RNA
+    if chars.issubset(dna_chars):
         return "DNA/RNA"
-    if chars and chars.issubset(prot_chars):
+    # If it contains other amino acid letters, it's a Protein
+    if chars.issubset(prot_chars):
         return "Protein"
+    
     return "Unknown"
 
 

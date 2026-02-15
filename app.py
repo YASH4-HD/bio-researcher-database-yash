@@ -1341,24 +1341,35 @@ if df is not None and query:
                 col_left, col_right = st.columns([2, 1])
                 
                 with col_left:
+                    # 1. TOPIC (Column: Topic)
                     topic_name = str(kb_row.get("Topic", "Untitled Topic")).strip()
                     st.header(topic_name)
                     
-                    # Tags
-                    bio_keywords = ["DNA", "RNA", "Protein", "Enzyme", "CRISPR", "Metabolism", "Pathway", "Cell"]
-                    found_tags = [tag for tag in bio_keywords if tag.lower() in (str(kb_row.get("Explanation", "")) + topic_name).lower()]
-                    if found_tags:
-                        tag_html = "".join([f'<span style="background-color:#e1f5fe; color:#01579b; padding:4px 12px; border-radius:15px; margin-right:8px; font-size:0.75rem; font-weight:bold; border:1px solid #b3e5fc;">🧬 {t}</span>' for t in found_tags])
-                        st.markdown(tag_html, unsafe_allow_html=True)
-
+                    # 2. MAIN THEORY (Column: Theory)
                     st.markdown("### 📖 Theory & Mechanism")
-                    st.write(str(kb_row.get("Explanation", "No explanation provided.")))
+                    theory_text = str(kb_row.get("Theory", "No theory available."))
+                    st.write(theory_text)
                     
-                    with st.expander("📘 Detailed Analysis", expanded=False):
-                        st.write(str(kb_row.get("Ten_Points", "")).replace("_x000D_", "\n"))
+                    # 3. DETAILED EXPANDER (Columns: Explanation & Ten_Points)
+                    with st.expander("📘 Detailed Analysis & Key Points", expanded=False):
+                        # Part A: The Detailed Explanation
+                        st.markdown("**Detailed Breakdown:**")
+                        detailed_expl = str(kb_row.get("Explanation", "No detailed explanation."))
+                        st.write(detailed_expl)
+                        
+                        st.divider() # Small line between the two
+                        
+                        # Part B: The Ten Points
+                        st.markdown("**Key Takeaways:**")
+                        points_text = str(kb_row.get("Ten_Points", ""))
+                        # Convert [Alt+Enter] to actual new lines
+                        clean_points = points_text.replace("[Alt+Enter]", "\n")
+                        st.write(clean_points)
 
-                    # ADD TO REPORT (Properly nested inside button)
+                    # Add to Report Button
                     if st.button("Add to Research Report", icon="➕", key="kb_report_btn"):
+                        # ... (keep your existing report logic here)
+
                         if 'report_list' not in st.session_state:
                             st.session_state['report_list'] = []
                         if topic_name not in [item['Topic'] for item in st.session_state['report_list']]:

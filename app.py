@@ -258,7 +258,8 @@ def render_bar_figure(df: pd.DataFrame, x_col: str, y_col: str, title: str):
 @st.cache_data
 def load_index():
     fallback_df = pd.DataFrame(
-        {
+/workspace/bio-researcher-database-yash$ /bin/bash -lc sed -n '261,520p' app.py
+{
             "page": [44],
             "text_content": [
                 "glycolysis is a central metabolic pathway for energy generation through enzyme catalyzed reactions"
@@ -517,8 +518,7 @@ def validate_api_key(provider: str, api_key: str):
         if not key.startswith("AIza"):
             return False, "Gemini API keys usually start with `AIza`."
     return True, ""
-
-
+/workspace/bio-researcher-database-yash$ /bin/bash -lc sed -n '521,780p' app.py
 def call_gemini_with_fallback(api_key: str, prompt: str, model_name: str):
     base_headers = {"Content-Type": "application/json"}
 
@@ -777,8 +777,8 @@ if df is not None and query:
     
                         # Calculate layout positions
                         pos = nx.spring_layout(G, k=0.5, iterations=50, seed=42)
-    
-                        # Create Edge Traces
+/workspace/bio-researcher-database-yash$ /bin/bash -lc sed -n '781,1040p' app.py
+# Create Edge Traces
                         edge_x, edge_y = [], []
                         for edge in G.edges():
                             x0, y0 = pos[edge[0]]
@@ -1038,6 +1038,148 @@ if df is not None and query:
                     st.session_state["ai_prompt"] = (
                         "Suggest a CRISPR guide RNA strategy for one key gene from this context, including controls and expected readouts."
                     )
+/workspace/bio-researcher-database-yash$ /bin/bash -lc sed -n '781,900p' app.py
+# Create Edge Traces
+                        edge_x, edge_y = [], []
+                        for edge in G.edges():
+                            x0, y0 = pos[edge[0]]
+                            x1, y1 = pos[edge[1]]
+                            edge_x.extend([x0, x1, None])
+                            edge_y.extend([y0, y1, None])
+    
+                        edge_trace = go.Scatter(x=edge_x, y=edge_y, line=dict(width=1, color='#888'), hoverinfo='none', mode='lines')
+    
+                        # Create Node Traces
+                        node_x, node_y, node_text, node_color, node_hover_text = [], [], [], [], []
+                        for node in G.nodes():
+                            x, y = pos[node]
+                            node_x.append(x)
+                            node_y.append(y)
+                            node_text.append(f"{node}")
+                            count_a = concepts_df[concepts_df["term_a"] == node]["co_occurrences"].sum()
+                            count_b = concepts_df[concepts_df["term_b"] == node]["co_occurrences"].sum()
+                            total = int(count_a + count_b)
+                            node_hover_text.append(f"Node: {node}<br>Co-occurrences: {total}")
+                            # Color logic
+                            if node.lower() == query.lower(): node_color.append('#FFD700') # Gold
+                            elif "ase" in node.lower(): node_color.append('#C1E1C1') # Green
+                            else: node_color.append('#d1ecff') # Blue
+    
+                        node_trace = go.Scatter(
+                            x=node_x, y=node_y, mode='markers+text', text=node_text, textposition="top center",
+                            hovertext=node_hover_text,
+                            marker=dict(showscale=False, color=node_color, size=25, line_width=2),
+                            hoverinfo='text'
+                        )
+    
+                        # Create Figure
+                        fig = go.Figure(data=[edge_trace, node_trace],
+                                     layout=go.Layout(showlegend=False, hovermode='closest',
+                                     margin=dict(b=0,l=0,r=0,t=0),
+                                     height=520,
+                                     xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                                     yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="x", scaleratio=1)))
+                        
+                        st.plotly_chart(fig, use_container_width=True)
+    
+                        # --- DOWNLOAD & DATA SECTION ---
+                        fig_data = concepts_df.head(10).copy()
+                        fig_data["edge"] = fig_data["term_a"] + " ↔ " + fig_data["term_b"]
+                        fig_buf = render_bar_figure(fig_data, "edge", "co_occurrences", f"Weights: {query}")
+                        
+                        col_dl, col_raw = st.columns([1, 1])
+                        with col_dl:
+                            if fig_buf:
+                                st.download_button("⬇️ Download Analysis PNG", fig_buf, f"{query}_analysis.png", "image/png", use_container_width=True)
+                        with col_raw:
+                            with st.expander("📊 View Connection Table"):
+                                st.dataframe(concepts_df, use_container_width=True)
+    
+    
+    
+            # 3. Metabolic Map Link
+            if "Metabolic Map Link" in feature_flags and is_metabolite_like(query):
+                st.markdown("#### 🧭 Metabolic Map Shortcut")
+                st.link_button(f"Open KEGG: {query}", f"https://www.kegg.jp/kegg-bin/search_pathway_text?map=&keyword={quote_plus(query)}&mode=1")
+
+
+            if "Semantic Bridge" in feature_flags:
+                st.markdown("#### 🌉 Semantic Analysis: Textbook ↔ Literature Bridge")
+                st.caption("Fetch papers in Literature tab, then synthesize a compact summary.")
+
+        with tab3:
+            st.subheader(f"Latest Research for '{query.capitalize()}'")
+            fetch = st.button("Fetch PubMed Articles")
+            if fetch:
+                with st.spinner("Searching NCBI..."):
+                    data = search_pubmed(query, pi_name)
+                    st.session_state["pubmed_docs"] = data if data else []
+
+            docs = st.session_state.get("pubmed_docs", [])
+            if docs:
+                docs = sorted(docs, key=lambda d: paper_score(d, query), reverse=True)
+                selected_papers, paper_titles = [], []
+                st.caption("Sorted by Paper Score = relevance + recency + journal prestige + DOI availability.")
+
+                for i, doc in enumerate(docs):
+                    title = doc.get("Title", "No Title")
+                    source = doc.get("Source", "Journal")
+                    pubdate = doc.get("PubDate", "N/A")
+                    pmid = doc.get("Id", "")
+                    paper_titles.append(title)
+
+                    st.markdown(f"#### {title}")
+                    st.write(f"📖 *{source}* | 📅 {pubdate} | ⭐ Score: {paper_score(doc, query)}")
+
+                    col_a, col_b = st.columns([1, 1])
+                    with col_a:
+                        st.link_button("Read Full Paper", f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/")
+                    with col_b:
+                        doi = extract_doi(doc)
+                        if doi:
+                            st.link_button("DOI", f"https://doi.org/{doi}")
+                        else:
+                            st.caption("DOI not available in PubMed summary")
+
+                    symbols = extract_gene_symbols(title)
+                    if symbols:
+                        cols = st.columns(len(symbols))
+                        for j, sym in enumerate(symbols):
+                            with cols[j]:
+                                st.link_button(f"NCBI {sym}", f"https://www.ncbi.nlm.nih.gov/gene/?term={sym}")
+                                st.link_button(f"UniProt {sym}", f"https://www.uniprot.org/uniprotkb?query={quote_plus(sym)}")
+                                st.link_button(f"PubChem {sym}", f"https://pubchem.ncbi.nlm.nih.gov/#query={quote_plus(sym)}")
+                                with st.expander(f"Expression viewer: {sym}"):
+                                    exp_df = deterministic_expression(sym)
+                                    st.bar_chart(exp_df.set_index("tissue"))
+                                    st.caption("Data source (simulated viewer): inspired by GTEx Portal / Human Protein Atlas API.")
+                                    exp_buf = render_bar_figure(exp_df, "tissue", "expression", f"Expression profile: {sym}")
+                                    if exp_buf:
+                                        st.download_button(
+                                            f"Download Figure ({sym} expression PNG)",
+                                            data=exp_buf,
+                                            file_name=f"{sym}_expression.png",
+/workspace/bio-researcher-database-yash$ /bin/bash -lc sed -n '1021,1140p' app.py
+model_name = st.text_input("Model (optional)", value="")
+
+            if "ai_prompt" not in st.session_state:
+                st.session_state["ai_prompt"] = (
+                    "You are a Molecular Biology Assistant. Based on the 10 points from Lehninger and expression context, "
+                    "suggest a hypothesis for a metabolic intervention and one experimental validation step."
+                )
+
+            st.markdown("#### Prompt templates")
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                if st.button("Summarize clinical significance"):
+                    st.session_state["ai_prompt"] = (
+                        "Summarize the clinical significance of this pathway, include one disease link and one translational biomarker."
+                    )
+            with c2:
+                if st.button("Suggest a CRISPR guide RNA strategy"):
+                    st.session_state["ai_prompt"] = (
+                        "Suggest a CRISPR guide RNA strategy for one key gene from this context, including controls and expected readouts."
+                    )
             with c3:
                 if st.button("Analyze metabolic flux in T-cells"):
                     st.session_state["ai_prompt"] = (
@@ -1138,130 +1280,9 @@ if df is not None and query:
 
             st.divider()
             st.markdown("#### 🔬 Technical Research (NCBI)")
-            db = st.selectbox("Select Database", ["pubmed"], key="global_db")
-            pubmed_topic = st.text_input("Enter pubmed keyword for technical data", value=query, key="global_pubmed_topic")
-            if st.button("Search NCBI"):
-                st.session_state["global_pubmed_docs"] = search_pubmed(pubmed_topic) or []
-
-            docs_g = st.session_state.get("global_pubmed_docs", [])
-            if docs_g:
-                for i, doc in enumerate(docs_g[:5], start=1):
-                    title = doc.get("Title", "No Title")
-                    src = doc.get("Source", "Journal")
-                    date_pub = doc.get("PubDate", "N/A")
-                    pmid = doc.get("Id", "")
-                    with st.expander(f"{i}. {title}"):
-                        st.write(f"📖 *{src}* | 📅 {date_pub}")
-                        if pmid:
-                            st.link_button("Open PubMed", f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/")
-
-        with tab8:
-            st.subheader("🇮🇳 IN Hindi Explain")
-            st.caption("Paste English biology text and convert to Hindi explanation.")
-
-            ex1, ex2 = st.columns(2)
-            with ex1:
-                if st.button("Use Glycolysis Example"):
-                    st.session_state["hindi_input"] = (
-                        "Glycolysis is a metabolic pathway that converts glucose into pyruvate and releases energy as ATP."
-                    )
-            with ex2:
-                if st.button("Use Restriction Enzyme Example"):
-                    st.session_state["hindi_input"] = "Enzymes that cut DNA at specific palindromic sequences."
-
-            hindi_input = st.text_area("English text", value=st.session_state.get("hindi_input", ""), height=150, key="hindi_input")
-            if st.button("Translate to Hindi"):
-                st.session_state["hindi_output"] = translate_to_hindi(hindi_input)
-
-            out_hi = st.session_state.get("hindi_output", "")
-            if out_hi:
-                with st.container(border=True):
-                    st.markdown("### Hindi Output")
-                    st.info(out_hi)
-                    st.download_button(
-                        "Download Hindi Output (.txt)",
-                        data=out_hi,
-                        file_name="hindi_explanation.txt",
-                        mime="text/plain",
-                    )
-
-        with tab9:
-            st.subheader("🌐 Global Bioinformatics Command Center")
-            st.caption("Centralized Research Hub: Analyze sequences, visualize structures, and access primary databases.")
-
-            # Create Sub-tabs inside Tab 9
-            bio_sub1, bio_sub2, bio_sub3 = st.tabs(["🧬 Sequence Analysis", "💎 3D Structure", "🔍 Database Portal"])
-
-            with bio_sub1:
-                st.markdown("#### 🔬 Protein/DNA Sequence Analyzer")
-                seq_input = st.text_area("Paste FASTA sequence or raw string", height=150, placeholder="MTVKVGINGFGRIGR...")
-                if seq_input:
-                    clean_seq = "".join(seq_input.split()).upper()
-                    seq_type = infer_sequence_type(clean_seq)
-                    st.info(f"Detected Type: **{seq_type}**")
-                    
-                    if seq_type == "Protein":
-                        try:
-                            analysed_seq = ProteinAnalysis(clean_seq)
-                            col1, col2, col3 = st.columns(3)
-                            col1.metric("Molecular Weight", f"{analysed_seq.molecular_weight():.2f} Da")
-                            col2.metric("Isoelectric Point", f"{analysed_seq.isoelectric_point():.2f}")
-                            col3.metric("Aromaticity", f"{analysed_seq.aromaticity():.2f}")
-                        except Exception as e:
-                            st.error(f"Analysis error: {e}")
-                    elif seq_type == "DNA/RNA":
-                        st.metric("GC Content", f"{gc_percent(clean_seq):.2f}%")
-
-            with bio_sub2:
-                st.markdown("#### 💎 3D Molecular Visualization")
-                pdb_id_input = st.text_input("Enter 4-letter PDB ID", value="1A8M").upper().strip()
-                
-                if len(pdb_id_input) == 4:
-                    with st.container(border=True):
-                        view = py3Dmol.view(query=f'pdb:{pdb_id_input}')
-                        view.setStyle({'cartoon': {'color': 'spectrum'}})
-                        view.addSurface(py3Dmol.VDW, {'opacity': 0.3, 'color': 'white'})
-                        view.zoomTo()
-                        showmol(view, height=500, width=800)
-                    st.caption(f"Interactive View: {pdb_id_input}. Use mouse to rotate and zoom.")
-                else:
-                    st.warning("Please enter a valid 4-character PDB ID (e.g., 6MOJ, 1A8M).")
-
-            with bio_sub3:
-                st.markdown("#### 🔍 Primary Database Access")
-                col_sel, col_search = st.columns([2, 1])
-                with col_sel:
-                    portal_choice = st.selectbox(
-                        "Select Database",
-                        options=["RCSB PDB", "UniProt", "NCBI Gene", "NCBI Structure", "AlphaFold DB"]
-                    )
-                with col_search:
-                    # If the user hasn't typed anything specific, use the main query
-                    portal_query = st.text_input("ID or Search Term", value=query, key="portal_search_input").strip()
-
-                # --- FIXED RCSB PDB URL LOGIC ---
-                # Defensive default to avoid NameError if an unexpected option/state appears.
-                target_url = f"https://www.google.com/search?q={quote_plus(portal_query)}"
-                if portal_choice == "RCSB PDB":
-                    # Check if it looks like a PDB ID (4 characters, alphanumeric)
-                    if len(portal_query) == 4 and portal_query.isalnum():
-                        target_url = f"https://www.rcsb.org/structure/{portal_query}"
-                    else:
-                       # RCSB expects JSON in the `request` query param on `/search`.
-                        # Passing plain text as `query=` causes the in-page JSON parse error.
-                        rcsb_request = {
-                            "query": {
-                                "type": "terminal",
-                                "service": "full_text",
-                                "parameters": {
-                                    "operator": "contains_words",
-                                    "value": portal_query,
-                                },
-                            },
-                            "request_options": {"pager": {"start": 0, "rows": 25}},
-                            "return_type": "entry",
-                        }
-                        target_url = f"https://www.rcsb.org/search?request={quote_plus(json.dumps(rcsb_request))}"
+/workspace/bio-researcher-database-yash$ /bin/bash -lc sed -n '1261,1324p' app.py
+}
+                        target_url = f"https://www.rcsb.org/search?request={quote_plus(json.dumps(rcsb_request, separators=(',', ':')))}"
                 
                 elif portal_choice == "UniProt":
                     target_url = f"https://www.uniprot.org/uniprotkb?query={quote_plus(portal_query)}"
@@ -1272,7 +1293,7 @@ if df is not None and query:
                 elif portal_choice == "AlphaFold DB":
                     target_url = f"https://alphafold.ebi.ac.uk/search/text/{quote_plus(portal_query)}"
                 else:
-                     # Handles any stale/unknown selectbox state without crashing.
+                    # Handles any stale/unknown selectbox state without crashing.
                     st.warning("Unknown database selection. Falling back to a web search.")
 
                 st.link_button(f"🚀 Open {portal_choice} in New Tab", target_url, use_container_width=True)

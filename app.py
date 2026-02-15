@@ -1402,8 +1402,8 @@ if df is not None and query:
                 # This else belongs to "if not results.empty:"
                 st.warning(f"No matches found for '{query}'.")
         
-            st.sidebar.markdown("### 💡 Research Tip")
-            st.sidebar.info("Restriction enzymes work best at specific pH and temperature buffers.")
+            
+            
 
 # --- END OF FILE ---
 # =========================

@@ -259,7 +259,7 @@ def render_bar_figure(df: pd.DataFrame, x_col: str, y_col: str, title: str):
 def load_index():
     fallback_df = pd.DataFrame(
 
-{
+    {
             "page": [44],
             "text_content": [
                 "glycolysis is a central metabolic pathway for energy generation through enzyme catalyzed reactions"

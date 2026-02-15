@@ -1240,9 +1240,13 @@ if df is not None and query:
                     portal_query = st.text_input("ID or Search Term", value=query, key="portal_search_input").strip()
 
                 # --- FIXED RCSB PDB URL LOGIC ---
+                # Defensive default to avoid NameError if an unexpected option/state appears.
+                target_url = f"https://www.google.com/search?q={quote_plus(portal_query)}"
                 if portal_choice == "RCSB PDB":
                     # Check if it looks like a PDB ID (4 characters, alphanumeric)
                     if len(portal_query) == 4 and portal_query.isalnum():
+                        target_url = f"https://www.rcsb.org/structure/{portal_query}"
+                    else:
                        # RCSB expects JSON in the `request` query param on `/search`.
                         # Passing plain text as `query=` causes the in-page JSON parse error.
                         rcsb_request = {

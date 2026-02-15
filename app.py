@@ -1534,11 +1534,7 @@ if df is not None and query:
                         st.success("✅ GC content is balanced.")
                     else:
                         st.error("❌ GC content outside 40-60% range.")
-                   if 40 <= gc_content <= 60:
-                        st.success("✅ GC content is balanced.")
-                    else:
-                        st.error("❌ GC content outside 40-60% range.")
-
+                   
         # --- END OF ALL TABS ---
         
     else:

@@ -1430,27 +1430,26 @@ with st.sidebar:
     st.divider()
     st.markdown("### 📋 My Research Report")
     
-    # Initialize the list if it doesn't exist
+        # 1. Initialize the list if it doesn't exist
     if 'report_list' not in st.session_state:
         st.session_state['report_list'] = []
 
+    # 2. Check if the report is empty
     if not st.session_state['report_list']:
         st.info("Your report is empty. Add topics from the 'Reader' tab.")
     else:
-        # Show each item in the report
+        # 3. Show each item in the report
         for i, item in enumerate(st.session_state['report_list']):
-            # item is a dictionary: {"Topic": "...", "Notes": "..."}
             st.write(f"{i+1}. **{item['Topic']}**")
         
         st.write("") # Spacer
-        
-        # CLEAR REPORT BUTTON
-        if st.button("🗑️ Clear Report", use_container_width=True):
+
+        # 4. CLEAR REPORT BUTTON
+        if st.button("🗑️ Clear Report", key="clear_sidebar_report", use_container_width=True):
             st.session_state['report_list'] = []
             st.rerun()
 
-        # DOWNLOAD BUTTON
-        # Convert the list to a readable text format
+        # 5. DOWNLOAD BUTTON LOGIC
         report_text = "RESEARCH REPORT\n" + "="*20 + "\n\n"
         for i, item in enumerate(st.session_state['report_list']):
             report_text += f"{i+1}. TOPIC: {item['Topic']}\n"
@@ -1462,11 +1461,10 @@ with st.sidebar:
             data=report_text,
             file_name="research_report.txt",
             mime="text/plain",
-            use_container_width=True
+            use_container_width=True,
+            key="download_sidebar_report"
         )
 
-        
-    else:
-        st.info("Your report is empty. Add topics from the 'Reader' tab.")
-        st.sidebar.markdown("### 💡 Research Tip")
-        st.sidebar.info("Restriction enzymes work best at specific pH and temperature buffers.")
+    # 6. Research Tip (Moved outside the else so it always shows)
+    st.sidebar.markdown("### 💡 Research Tip")
+    st.sidebar.info("Focus on molecular interactions and regulatory nodes relevant to CSIR-NET Part C.")

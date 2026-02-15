@@ -518,7 +518,7 @@ def validate_api_key(provider: str, api_key: str):
         if not key.startswith("AIza"):
             return False, "Gemini API keys usually start with `AIza`."
     return True, ""
-/workspace/bio-researcher-database-yash$ /bin/bash -lc sed -n '521,780p' app.py
+
 def call_gemini_with_fallback(api_key: str, prompt: str, model_name: str):
     base_headers = {"Content-Type": "application/json"}
 
@@ -777,7 +777,7 @@ if df is not None and query:
     
                         # Calculate layout positions
                         pos = nx.spring_layout(G, k=0.5, iterations=50, seed=42)
-/workspace/bio-researcher-database-yash$ /bin/bash -lc sed -n '781,1040p' app.py
+
 # Create Edge Traces
                         edge_x, edge_y = [], []
                         for edge in G.edges():
@@ -1038,7 +1038,7 @@ if df is not None and query:
                     st.session_state["ai_prompt"] = (
                         "Suggest a CRISPR guide RNA strategy for one key gene from this context, including controls and expected readouts."
                     )
-/workspace/bio-researcher-database-yash$ /bin/bash -lc sed -n '781,900p' app.py
+
 # Create Edge Traces
                         edge_x, edge_y = [], []
                         for edge in G.edges():
@@ -1159,7 +1159,7 @@ if df is not None and query:
                                             f"Download Figure ({sym} expression PNG)",
                                             data=exp_buf,
                                             file_name=f"{sym}_expression.png",
-/workspace/bio-researcher-database-yash$ /bin/bash -lc sed -n '1021,1140p' app.py
+
 model_name = st.text_input("Model (optional)", value="")
 
             if "ai_prompt" not in st.session_state:
@@ -1280,7 +1280,7 @@ model_name = st.text_input("Model (optional)", value="")
 
             st.divider()
             st.markdown("#### 🔬 Technical Research (NCBI)")
-/workspace/bio-researcher-database-yash$ /bin/bash -lc sed -n '1261,1324p' app.py
+
 }
 if portal_choice == "RCSB PDB":
     rcsb_request = {

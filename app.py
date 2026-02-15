@@ -1396,7 +1396,51 @@ if df is not None and query:
                         st.link_button("🔍 View Full Image", full_img_url, use_container_width=True)
 
 
+        with tab_csir_10pts: # Use the correct index for your new tab
+            st.header("🧠 CSIR-NET / GATE: 10 Key Exam Points")
+            
+            if kb_df.empty:
+                st.warning("Please upload knowledge_base.csv")
+            else:
+                # Use the same index from the Reader tab so they stay synced
+                current_kb_idx = st.session_state.get('kb_idx', 0)
+                kb_row = kb_df.iloc[current_kb_idx]
+                
+                # Header Info
+                st.info(f"**Topic:** {kb_row.get('Topic', 'N/A')}")
+                
+                # --- ACTIVE RECALL SYSTEM (Study Mode) ---
+                study_mode = st.toggle("Enable Study Mode (Hide Notes)", key="kb_study_toggle")
+                
+                if study_mode:
+                    st.warning("🙈 **Study Mode Active:** Try to recall the 10 key points about this topic before revealing them!")
+                    if st.button("👁️ Reveal Notes for 10 Seconds"):
+                        st.info(kb_row.get("Ten_Points", "No points available."))
+                        # Note: True timer requires more complex JS, but this shows the text on click
+                else:
+                    st.success("📝 **Full Notes:**")
+                    # Display the 10 points
+                    points_text = kb_row.get("Ten_Points", "No points available.")
+                    st.markdown(points_text)
 
+                st.divider()
+                
+                # --- ACTION BUTTONS ---
+                c1, c2 = st.columns(2)
+                with c1:
+                    if st.button("📑 Generate Citation", key="kb_cite"):
+                        st.code(f"Nama, Y. (2024). {kb_row['Topic']}. BioVisual Knowledge Base.")
+                
+                with c2:
+                    # Download specific study notes for this topic
+                    st.download_button(
+                        label="📥 Download Study Notes",
+                        data=str(points_text),
+                        file_name=f"{kb_row['Topic']}_notes.txt",
+                        mime="text/plain",
+                        use_container_width=True
+                    )
+        
         with tab11:
             st.subheader("🧪 Experimental Zone")
             st.caption("Prototype sandbox for rapid hypothesis testing.")

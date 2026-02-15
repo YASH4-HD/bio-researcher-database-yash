@@ -1285,101 +1285,99 @@ if df is not None and query:
             
             st.divider() 
 
-        with tab10:
-            st.subheader("📘 CSIR-NET / GATE Planner")
+                with tab10:
+            st.subheader("📘 CSIR-NET / GATE Planner & Study Reader")
             
-    if knowledge_df.empty:
-        st.warning("⚠️ Knowledge base is empty. Please check your CSV file.")
-    else:
-                                                                                                # 1. TOP PROGRESS BAR
-        progress_value = (st.session_state.page_index + 1) / len(knowledge_df)
-        st.progress(progress_value)
+            # Use 'df' as the knowledge base
+            if df is None or df.empty:
+                st.warning("⚠️ Knowledge base is empty. Please check your lehninger_index.csv file.")
+            else:
+                # Initialize session state for the reader
+                if 'page_index' not in st.session_state:
+                    st.session_state.page_index = 0
 
-        # 2. SIMPLE TOOLBAR (Using standard columns, no complex CSS)
-        # The [0.5, 0.8, 0.5, 4] ratio keeps everything small and to the left
-        c1, c2, c3, c4 = st.columns([0.6, 0.8, 0.6, 4])
-        
-        with c1:
-            # Standard button - works every time
-            if st.button("⬅ PREV", use_container_width=True, disabled=st.session_state.page_index == 0):
-                st.session_state.page_index = max(0, st.session_state.page_index - 1)
-                st.rerun()
-        
-        with c2:
-            # Use a simple st.info or st.code for a boxed look without complex CSS
-            current_pg = st.session_state.page_index + 1
-            total_pg = len(knowledge_df)
-            st.markdown(f"""
-                <div style="border: 1px solid #ddd; border-radius: 5px; padding: 2px; text-align: center; background-color: #f9f9f9; line-height: 1.2;">
-                    <p style="margin: 0; font-size: 0.7rem; color: gray;">PAGE</p>
-                    <p style="margin: 0; font-weight: bold; font-size: 1rem;">{current_pg} / {total_pg}</p>
-                </div>
-            """, unsafe_allow_html=True)
-        
-        with c3:
-            if st.button("NEXT ➡", use_container_width=True, disabled=st.session_state.page_index == len(knowledge_df) - 1):
-                st.session_state.page_index = min(len(knowledge_df) - 1, st.session_state.page_index + 1)
-                st.rerun()
+                # 1. TOP PROGRESS BAR
+                progress_value = (st.session_state.page_index + 1) / len(df)
+                st.progress(progress_value)
 
-        st.divider()
-
-
-
-
-
-        
-        # Define current row and save to session state
-        row = knowledge_df.iloc[st.session_state.page_index]
-        st.session_state['selected_row'] = row
-        
-        # Layout: Text on Left, Diagram Spoiler on Right
-        left, right = st.columns([2, 1])
-        
-    with left:
-        st.header(row.get("Topic", "Untitled"))
-        
-        # --- NEW: AUTO-TAG GENERATOR ---
-        # This logic simulates NLP entity extraction
-        bio_keywords = ["DNA", "RNA", "Protein", "CRISPR", "Gene", "Cell", "Enzyme", "Mutation", "Pathway", "Genomics"]
-        text_content = str(row.get("Explanation", "")) + " " + str(row.get("Detailed_Explanation", ""))
-        
-        # Find which keywords are in the text
-        found_tags = [tag for tag in bio_keywords if tag.lower() in text_content.lower()]
-        
-        if found_tags:
-            tag_html = ""
-            for t in found_tags:
-                tag_html += f'<span style="background-color:#e1f5fe; color:#01579b; padding:4px 10px; border-radius:15px; margin-right:5px; font-size:0.8rem; font-weight:bold; border:1px solid #01579b;">🧬 {t}</span>'
-            st.markdown(tag_html, unsafe_allow_html=True)
-            st.write("") # Spacer
-        
-        # --- END TAGS ---
-    
-        st.write(row.get("Explanation", "No explanation available."))
-        
-        with st.expander("📘 Detailed Analysis & Mechanism"):
-            st.write(row.get("Detailed_Explanation", "No extra details available."))
-        if st.button("Add to Research Report", icon="➕", use_container_width=False):
-                if 'report_list' not in st.session_state:
-                    st.session_state['report_list'] = []
+                # 2. NAVIGATION TOOLBAR
+                c1, c2, c3, c4 = st.columns([0.6, 0.8, 0.6, 4])
                 
-                # Check if already added
-                if row['Topic'] not in [item['Topic'] for item in st.session_state['report_list']]:
-                    st.session_state['report_list'].append({
-                        "Topic": row['Topic'],
-                        "Notes": row['Explanation']
-                    })
-                    st.toast(f"Added {row['Topic']} to report!", icon="✅")
-                else:
-                    st.warning("Topic already in report.")
-        with right:
-            # --- DIAGRAM SPOILER ---
-            with st.expander("🖼️ View Topic Diagram", expanded=False):
-                img_path = str(row.get("Image", ""))
-                if img_path and os.path.exists(img_path):
-                    st.image(img_path, use_container_width=True, caption=f"Visual: {row.get('Topic')}")
-                else:
-                    st.info("No diagram available.")
+                with c1:
+                    if st.button("⬅ PREV", key="gate_prev", use_container_width=True, 
+                                 disabled=st.session_state.page_index == 0):
+                        st.session_state.page_index = max(0, st.session_state.page_index - 1)
+                        st.rerun()
+                
+                with c2:
+                    current_pg = st.session_state.page_index + 1
+                    total_pg = len(df)
+                    st.markdown(f"""
+                        <div style="border: 1px solid #ddd; border-radius: 5px; padding: 2px; text-align: center; background-color: #f9f9f9; line-height: 1.2;">
+                            <p style="margin: 0; font-size: 0.7rem; color: gray;">TOPIC</p>
+                            <p style="margin: 0; font-weight: bold; font-size: 1rem;">{current_pg} / {total_pg}</p>
+                        </div>
+                    """, unsafe_allow_html=True)
+                
+                with c3:
+                    if st.button("NEXT ➡", key="gate_next", use_container_width=True, 
+                                 disabled=st.session_state.page_index == len(df) - 1):
+                        st.session_state.page_index = min(len(df) - 1, st.session_state.page_index + 1)
+                        st.rerun()
+
+                st.divider()
+
+                # Define current row from your main Lehninger dataframe
+                row = df.iloc[st.session_state.page_index]
+                
+                # Layout: Text on Left, Diagram on Right
+                left, right = st.columns([2, 1])
+                
+                with left:
+                    # Get topic name (tries 'topic' column, falls back to 'page' number)
+                    topic_title = str(row.get("topic", row.get("page", "Biochemistry Topic")))
+                    st.header(topic_title)
+                    
+                    # --- AUTO-TAG GENERATOR ---
+                    bio_keywords = ["DNA", "RNA", "Protein", "CRISPR", "Gene", "Cell", "Enzyme", "Metabolism", "Pathway"]
+                    text_content = str(row.get("text_content", ""))
+                    
+                    found_tags = [tag for tag in bio_keywords if tag.lower() in text_content.lower()]
+                    
+                    if found_tags:
+                        tag_html = ""
+                        for t in found_tags:
+                            tag_html += f'<span style="background-color:#e1f5fe; color:#01579b; padding:4px 10px; border-radius:15px; margin-right:5px; font-size:0.8rem; font-weight:bold; border:1px solid #01579b;">🧬 {t}</span>'
+                        st.markdown(tag_html, unsafe_allow_html=True)
+                        st.write("") 
+                
+                    # Main content from CSV
+                    st.write(text_content)
+                    
+                    with st.expander("📘 Detailed Analysis & Mechanism"):
+                        st.write(f"Detailed view for page {row.get('page')}. Focus on molecular interactions and regulatory nodes relevant to CSIR-NET Part C.")
+                    
+                    if st.button("Add to Research Report", icon="➕", key="gate_report_add"):
+                        if 'report_list' not in st.session_state:
+                            st.session_state['report_list'] = []
+                        
+                        report_entry = {"Topic": topic_title, "Notes": text_content[:200]}
+                        if topic_title not in [item['Topic'] for item in st.session_state['report_list']]:
+                            st.session_state['report_list'].append(report_entry)
+                            st.toast(f"Added {topic_title} to report!", icon="✅")
+                        else:
+                            st.warning("Topic already in report.")
+
+                with right:
+                    # --- DIAGRAM SECTION ---
+                    with st.expander("🖼️ View Topic Diagram", expanded=True):
+                        # Use your R2 URL logic to show the textbook page as the diagram
+                        page_num = row.get("page")
+                        if page_num:
+                            img_url = f"{R2_URL}/full_pages/page_{page_num}.png"
+                            st.image(img_url, use_container_width=True, caption=f"Lehninger Fig. Page {page_num}")
+                        else:
+                            st.info("No diagram available for this section.")
 
         with tab11:
             st.subheader("🧪 Experimental Zone")

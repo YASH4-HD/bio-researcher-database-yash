@@ -158,27 +158,62 @@ def render_sidebar_status():
     june_exam = date(today.year, 6, 1)
     gate_exam = date(2027, 2, 1)
 
-    st.sidebar.markdown("### 🛡️ Bio-Verify 2026")
-    st.sidebar.write(f"📅 {today.strftime('%d %b %Y')}")
-    st.sidebar.success("✅ Live API Connection: Active")
-    st.sidebar.info("Verified Data Sources: NCBI, Wikipedia, Google")
+# =========================
+# SIDEBAR: BIO-VERIFY PANEL
+# =========================
+with st.sidebar:
 
-    st.sidebar.markdown("### 🔎 Suggested Searches")
-    st.sidebar.caption("PCR • CRISPR • Glycolysis • DNA Repair • T-cell Metabolism")
-    st.sidebar.markdown("### 🧬 Yashwant Nama")
-    st.sidebar.info("Developer & Researcher\n\n**Bio-Informatics & Genetics**")
-    c1, c2 = st.sidebar.columns(2)
-    with c1:
-        st.caption("🧬 Genomics")
-    with c2:
-        st.caption("🕸️ Networks")
+    # Title
+    st.title("🛡️ Bio-Verify 2026")
 
-    st.sidebar.divider()
-    st.sidebar.markdown("### 📆 Exam Countdown")
-    st.sidebar.info(f"**CSIR NET JUNE:** {(june_exam - today).days} days left")
-    st.sidebar.info(f"**GATE 2027:** {(gate_exam - today).days} days left")
+    # --- INDIA TIME (IST) ---
+    ist = pytz.timezone("Asia/Kolkata")
+    today_dt = datetime.datetime.now(ist)
+    today_date = today_dt.date()
 
-    st.sidebar.divider()
+    # Display current date
+    today_auto = today_dt.strftime("%d %b %Y")
+    st.subheader(f"📅 {today_auto.upper()}")
+
+    st.divider()
+
+    # --- EXAM DATES ---
+    EXAMS = {
+        "CSIR NET JUNE": datetime.date(2026, 6, 1),
+        "GATE 2027": datetime.date(2027, 2, 2),
+    }
+
+    st.subheader("📆 Exam Countdown")
+
+    for exam, exam_date in EXAMS.items():
+        days_left = (exam_date - today_date).days
+
+        if days_left > 0:
+            st.info(f"**{exam}**: {days_left} days left")
+        elif days_left == 0:
+            st.warning(f"**{exam}**: Exam Today!")
+        else:
+            st.error(f"**{exam}**: Exam completed")
+
+    st.divider()
+
+    # --- STATUS BADGES ---
+    st.success("✅ Live API Connection: Active")
+    st.info("Verified Data Sources: NCBI, Wikipedia, Google")
+
+    st.divider()
+ # --- PROFILE CARD (Image 3 Style) ---
+    st.markdown("""
+        <div style="background-color: #1e468a; padding: 20px; border-radius: 15px; text-align: center; color: white;">
+            <h3 style="margin: 0; color: white;">Yashwant Nama</h3>
+            <p style="margin: 5px 0; font-size: 0.9rem; opacity: 0.8;">Developer & Researcher</p>
+            <p style="font-weight: bold; font-size: 1rem;">Bio-Informatics & Genetics</p>
+            <div style="display: flex; justify-content: center; gap: 10px; margin-top: 10px;">
+                <span style="background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 20px; font-size: 0.8rem;">🧬 Genomics</span>
+                <span style="background: rgba(255,255,255,0.2); padding: 5px 10px; border-radius: 20px; font-size: 0.8rem;">🕸️ Networks</span>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
     st.sidebar.markdown("### 💡 Research Tip")
     st.sidebar.info("Restriction enzymes work best at specific pH and temperature buffers.")
 

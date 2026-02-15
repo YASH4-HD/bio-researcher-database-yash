@@ -2,6 +2,7 @@ import re
 from collections import Counter
 from itertools import combinations
 from pathlib import Path
+from urllib.parse import quote_plus
 
 import pandas as pd
 import streamlit as st
@@ -22,10 +23,15 @@ BIO_SYNONYMS = {
 STOP_WORDS = {
     "the", "and", "for", "with", "from", "that", "this", "into", "have", "were",
     "been", "about", "their", "there", "which", "while", "where", "after", "before",
-    "across", "between", "within", "using", "used", "show", "study", "role",
+    "across", "between", "within", "using", "used", "show", "study", "role", "university",
+    "vetbooks", "chapter", "edition", "pages", "copyright", "isbn", "www", "http",
 }
 GENE_BLACKLIST = {
     "DNA", "RNA", "ATP", "NAD", "NADH", "CELL", "HUMAN", "MOUSE", "BRAIN", "COVID",
+}
+METABOLITE_HINTS = {
+    "pyruvate", "lactate", "glucose", "fructose", "succinate", "citrate", "acetyl coa",
+    "oxaloacetate", "malate", "ketone", "glycogen", "cholesterol", "fatty acid",
 }
 
 
@@ -69,7 +75,7 @@ def generate_query_suggestions(search_query: str, text_series: pd.Series):
         tokens = re.findall(r"[a-z]{4,}", str(txt))
         token_counts.update(t for t in tokens if t not in STOP_WORDS)
 
-    for term, _ in token_counts.most_common(30):
+    for term, _ in token_counts.most_common(35):
         if search_query in term or term in search_query:
             continue
         suggestions.add(term)
@@ -124,6 +130,32 @@ def extract_gene_symbols(text: str):
     return sorted([c for c in candidates if c not in GENE_BLACKLIST and not c.isdigit()])[:3]
 
 
+def extract_doi(doc: dict):
+    doi = doc.get("DOI", "")
+    if isinstance(doi, str) and doi.strip():
+        return doi.strip()
+
+    article_ids = doc.get("ArticleIds") or doc.get("ArticleIdList") or []
+    if isinstance(article_ids, list):
+        for item in article_ids:
+            if isinstance(item, dict):
+                id_type = str(item.get("IdType", "")).lower()
+                value = item.get("Value") or item.get("value")
+                if id_type == "doi" and value:
+                    return str(value)
+            elif isinstance(item, str) and item.lower().startswith("10."):
+                return item
+
+    elocation = str(doc.get("ELocationID", ""))
+    match = re.search(r"10\.\d{4,9}/[-._;()/:A-Z0-9]+", elocation, flags=re.I)
+    return match.group(0) if match else ""
+
+
+def is_metabolite_like(search_term: str):
+    normalized = search_term.lower().strip()
+    return any(m in normalized for m in METABOLITE_HINTS)
+
+
 # --- 3. PUBMED FUNCTION ---
 def search_pubmed(search_query):
     try:
@@ -161,8 +193,9 @@ feature_flags = st.sidebar.multiselect(
         "Semantic Bridge",
         "Visual Knowledge Graph",
         "Reading List Builder",
+        "Metabolic Map Link",
     ],
-    default=["Semantic Query Expansion", "Semantic Bridge", "Visual Knowledge Graph"],
+    default=["Semantic Query Expansion", "Semantic Bridge", "Visual Knowledge Graph", "Metabolic Map Link"],
 )
 
 # --- 6. MAIN LOGIC ---
@@ -202,6 +235,7 @@ if df is not None and query:
                 suggestions = generate_query_suggestions(query, df.get("text_content", pd.Series(dtype=str)))
                 if suggestions:
                     st.write(" • " + " • ".join(suggestions[:10]))
+                    st.caption("Noise-filtered for OCR/footer terms (e.g., 'university', 'vetbooks').")
                 else:
                     st.info("No related suggestions found yet.")
 
@@ -218,6 +252,14 @@ if df is not None and query:
                     dot += f'"{query}" -- "{a}" [style=dotted, color="#b2c7e1"];\n'
                 dot += "}"
                 st.graphviz_chart(dot)
+                st.caption("Edge weight = term co-occurrence frequency within indexed textbook content.")
+
+            if "Metabolic Map Link" in feature_flags and is_metabolite_like(query):
+                st.markdown("#### 🧭 Metabolic Map Shortcut")
+                st.link_button(
+                    "Open KEGG pathway search",
+                    f"https://www.kegg.jp/kegg-bin/search_pathway_text?map=&keyword={quote_plus(query)}&mode=1",
+                )
 
             if "Semantic Bridge" in feature_flags:
                 st.markdown("#### 🌉 Semantic Analysis: Textbook ↔ Literature Bridge")
@@ -230,10 +272,7 @@ if df is not None and query:
             if fetch:
                 with st.spinner("Searching NCBI..."):
                     data = search_pubmed(query)
-                    if data:
-                        st.session_state["pubmed_docs"] = data
-                    else:
-                        st.session_state["pubmed_docs"] = []
+                    st.session_state["pubmed_docs"] = data if data else []
 
             docs = st.session_state.get("pubmed_docs", [])
             if docs:
@@ -249,7 +288,16 @@ if df is not None and query:
 
                     st.markdown(f"#### {title}")
                     st.write(f"📖 *{source}* | 📅 {pubdate}")
-                    st.link_button("Read Full Paper", f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/")
+
+                    col_a, col_b = st.columns([1, 1])
+                    with col_a:
+                        st.link_button("Read Full Paper", f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/")
+                    with col_b:
+                        doi = extract_doi(doc)
+                        if doi:
+                            st.link_button("DOI", f"https://doi.org/{doi}")
+                        else:
+                            st.caption("DOI not available in PubMed summary")
 
                     symbols = extract_gene_symbols(title)
                     if symbols:

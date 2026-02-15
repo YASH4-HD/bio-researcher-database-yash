@@ -1604,7 +1604,7 @@ with st.sidebar:
         # 1. Format numbers safely
         tm_val = f"{tm:.2f}" if ('tm' in locals() and isinstance(tm, (int, float))) else "N/A"
         gc_val = f"{gc_content:.2f}" if ('gc_content' in locals() and isinstance(gc_content, (int, float))) else "N/A"
-        curr_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        curr_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         # 2. Create the report string (Ensure f""" starts the block and """ ends it)
         summary_text = f"""# 🧬 BioVisual Research Report

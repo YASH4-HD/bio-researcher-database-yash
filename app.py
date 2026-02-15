@@ -262,11 +262,14 @@ def load_knowledge_base():
         return pd.DataFrame()
     try:
         kb_df = pd.read_csv(csv_path)
+        
+        # Clean white spaces from headers
         kb_df.columns = [c.strip() for c in kb_df.columns]
         
-        # Remove the dummy row where Topic == 'Topic'
+        # --- FIXED LINE BELOW ---
+        # Added .str before .lower() to handle the pandas column correctly
         if "Topic" in kb_df.columns:
-            kb_df = kb_df[kb_df['Topic'].astype(str).str.strip().lower() != 'topic']
+            kb_df = kb_df[kb_df['Topic'].astype(str).str.lower() != 'topic']
         
         # Select all 4 relevant columns
         valid_cols = [c for c in ['Topic', 'Theory', 'Explanation', 'Ten_Points'] if c in kb_df.columns]
@@ -275,8 +278,10 @@ def load_knowledge_base():
         kb_df = kb_df.dropna(subset=['Topic']).reset_index(drop=True)
         return kb_df
     except Exception as e:
+        # This will now show the specific error if something else fails
         st.error(f"Error loading CSV: {e}")
         return pd.DataFrame()
+
 
 
 kb_df = load_knowledge_base()

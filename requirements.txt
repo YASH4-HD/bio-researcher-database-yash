@@ -17,4 +17,5 @@ matplotlib
 plotly
 pytz
 networkx
-
+stmol
+py3Dmol

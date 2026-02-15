@@ -1300,10 +1300,13 @@ if df is not None and query:
                     st.info(f"{portal_choice} does not support embedding. Use the button above.")
             
             st.divider() 
-
+                # --- PLACE THIS PART INSIDE YOUR TAB 10 BLOCK ---
         with tab10:
             st.subheader("📘 CSIR-NET / GATE Planner & Study Reader")
             
+            # Base URL for your R2 Bucket
+            KB_IMAGES_URL = "https://pub-c99877116ebd42b3b53e7d6779b1bfb6.r2.dev"
+
             if kb_df.empty:
                 st.warning("⚠️ knowledge_base.csv not found or empty. Please upload the file to your repository.")
             else:
@@ -1315,7 +1318,7 @@ if df is not None and query:
                 c1, c2, c3, c4 = st.columns([0.6, 0.8, 0.6, 4])
                 
                 with c1:
-                    if st.button("⬅ PREV", key="kb_prev", disabled=st.session_state.kb_idx == 0):
+                    if st.button("⬅ PREV", key="kb_prev", use_container_width=True, disabled=st.session_state.kb_idx == 0):
                         st.session_state.kb_idx -= 1
                         st.rerun()
                 
@@ -1323,14 +1326,14 @@ if df is not None and query:
                     curr = st.session_state.kb_idx + 1
                     total = len(kb_df)
                     st.markdown(f"""
-                        <div style="border: 1px solid #ddd; border-radius: 5px; padding: 2px; text-align: center; background-color: #f0f2f6;">
+                        <div style="border: 1px solid #ddd; border-radius: 5px; padding: 2px; text-align: center; background-color: #f0f2f6; line-height: 1.2;">
                             <p style="margin: 0; font-size: 0.7rem; color: #555;">TOPIC</p>
                             <p style="margin: 0; font-weight: bold; font-size: 1rem;">{curr} / {total}</p>
                         </div>
                     """, unsafe_allow_html=True)
                 
                 with c3:
-                    if st.button("NEXT ➡", key="kb_next", disabled=st.session_state.kb_idx == len(kb_df) - 1):
+                    if st.button("NEXT ➡", key="kb_next", use_container_width=True, disabled=st.session_state.kb_idx == len(kb_df) - 1):
                         st.session_state.kb_idx += 1
                         st.rerun()
 
@@ -1354,25 +1357,28 @@ if df is not None and query:
                     # Display Ten Points in an Expander
                     with st.expander("🎯 Ten Key Points (Exam Focus)", expanded=True):
                         points = kb_row.get("Ten_Points", "No points available.")
-                        # If points are separated by newlines in CSV, they will display correctly here
                         st.write(points)
                     
                     if st.button("Add to Research Report", icon="➕", key="kb_report_btn"):
-                        st.toast(f"Added {kb_row['Topic']} to report!")
+                        st.toast(f"Added {kb_row.get('Topic')} to report!", icon="✅")
 
                 with col_right:
-                    # Display Image from CSV
-                    st.markdown("### 🖼️ Diagram")
-                    img_file = str(kb_row.get("Image", ""))
-                    if img_file and img_file != "nan":
-                        # This assumes images are in your repo or accessible via URL
-                        # If you have a specific folder for images, add it here: e.g., f"images/{img_file}"
-                        try:
-                            st.image(img_file, use_container_width=True, caption=kb_row.get("Topic"))
-                        except:
-                            st.info(f"Image reference found: {img_file} (File not found in path)")
-                    else:
-                        st.info("No diagram linked for this topic.")
+                    st.markdown("### 🖼️ Study Diagram")
+                    
+                    # DYNAMIC LOGIC: Fetch image based on row number (1.jpg, 2.jpg...)
+                    img_number = st.session_state.kb_idx + 1
+                    full_img_url = f"{KB_IMAGES_URL}/{img_number}.jpg"
+                    
+                    try:
+                        st.image(
+                            full_img_url, 
+                            use_container_width=True, 
+                            caption=f"Visual for Topic {img_number}"
+                        )
+                        # Helpful link for the researcher to view full size
+                        st.link_button("🔍 View Full Image", full_img_url)
+                    except:
+                        st.info(f"Image {img_number}.jpg not found in R2 bucket.")
 
 
         with tab11:

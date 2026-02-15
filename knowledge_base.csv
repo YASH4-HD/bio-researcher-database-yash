@@ -18,7 +18,53 @@ Restriction enzymes require specific conditions like optimal temperature, pH, an
 They are essential tools in recombinant DNA technology, gene cloning, and genetic engineering.
 
 Common examples include EcoRI, HindIII, BamHI, and PstI, widely used in laboratories."
-PCR Principles,4.1,Thermal cycling to amplify specific DNA targets using Taq,,
+PCR Principles,4.1,Thermal cycling to amplify specific DNA targets using Taq,,"1️⃣ PCR (Polymerase Chain Reaction) is a technique used to amplify a specific DNA sequence in vitro.
+
+2️⃣ It was developed by Kary Mullis in 1983, who later received the Nobel Prize (1993).
+
+3️⃣ PCR requires three main components:
+
+Template DNA
+
+Primers (forward & reverse)
+
+Thermostable DNA polymerase
+
+4️⃣ The most commonly used enzyme is Taq DNA polymerase, isolated from Thermus aquaticus.
+
+5️⃣ PCR consists of three cyclic steps:
+
+Denaturation (94–95°C) – DNA strands separate
+
+Annealing (50–65°C) – Primers bind to template
+
+Extension (72°C) – DNA polymerase synthesizes new DNA
+
+6️⃣ Each cycle theoretically doubles the DNA amount, leading to exponential amplification (2ⁿ).
+
+7️⃣ PCR requires a machine called a thermal cycler to control temperature changes.
+
+8️⃣ The amplified DNA product is called an amplicon.
+
+9️⃣ Variations of PCR include:
+
+RT-PCR (Reverse Transcription PCR)
+
+qPCR (Quantitative PCR)
+
+Multiplex PCR
+
+🔟 PCR is widely used in:
+
+Disease diagnosis
+
+Forensic science
+
+Genetic engineering
+
+DNA fingerprinting
+
+Research & cloning"
 Plasmids,4.12.1,Circular DNA used for cloning inserts smaller than 10kb.,,
 BACs,4.12.4,Bacterial Artificial Chromosomes for 100-300kb fragments.,,
 Transformation,4.13,Introducing foreign DNA into host cells via heat-shock.,,

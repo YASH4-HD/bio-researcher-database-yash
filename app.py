@@ -1410,10 +1410,7 @@ if df is not None and query:
 
 
     
-        # Inside Tab 10...
-        if st.button("Add to Research Report", icon="➕", key="kb_report_btn"):
-            if 'report_list' not in st.session_state:
-                st.session_state['report_list'] = []
+        
             
             # Get the data from the current row
             topic_to_add = kb_row.get("Topic", "Untitled")

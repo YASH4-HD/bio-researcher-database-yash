@@ -1607,7 +1607,7 @@ with st.sidebar:
         
         # Creating the markdown content
     summary_text = f"""# 🧬 BioVisual Research Report
-        **Generated on:** {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+    **Generated on:** {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         
         ## 🔍 Target Analysis: {query if 'query' in locals() else 'N/A'}
         - **Sequence Type:** {seq_type if 'seq_type' in locals() else 'N/A'}

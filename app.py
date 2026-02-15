@@ -1185,76 +1185,76 @@ if df is not None and query:
                     )
 
        with tab9:
-            st.subheader("🌐 Global Bioinformatics Command Center")
-            st.caption("Centralized Research Hub: Analyze sequences, visualize structures, and access primary databases.")
-
-            # Create Sub-tabs inside Tab 9
-            bio_sub1, bio_sub2, bio_sub3 = st.tabs(["🧬 Sequence Analysis", "💎 3D Structure", "🔍 Database Portal"])
-
-            with bio_sub1:
-                st.markdown("#### 🔬 Protein/DNA Sequence Analyzer")
-                seq_input = st.text_area("Paste FASTA sequence or raw string", height=150, help="Analyze molecular weight, PI, and GC content.")
-                if seq_input:
-                    clean_seq = "".join(seq_input.split()).upper()
-                    seq_type = infer_sequence_type(clean_seq)
-                    st.info(f"Detected Type: **{seq_type}**")
+                st.subheader("🌐 Global Bioinformatics Command Center")
+                st.caption("Centralized Research Hub: Analyze sequences, visualize structures, and access primary databases.")
+        
+                # Create Sub-tabs inside Tab 9
+                bio_sub1, bio_sub2, bio_sub3 = st.tabs(["🧬 Sequence Analysis", "💎 3D Structure", "🔍 Database Portal"])
+        
+                with bio_sub1:
+                    st.markdown("#### 🔬 Protein/DNA Sequence Analyzer")
+                    seq_input = st.text_area("Paste FASTA sequence or raw string", height=150, help="Analyze molecular weight, PI, and GC content.")
+                    if seq_input:
+                        clean_seq = "".join(seq_input.split()).upper()
+                        seq_type = infer_sequence_type(clean_seq)
+                        st.info(f"Detected Type: **{seq_type}**")
+                        
+                        if seq_type == "Protein":
+                            try:
+                                analysed_seq = ProteinAnalysis(clean_seq)
+                                col1, col2, col3 = st.columns(3)
+                                col1.metric("Molecular Weight", f"{analysed_seq.molecular_weight():.2f} Da")
+                                col2.metric("Isoelectric Point", f"{analysed_seq.isoelectric_point():.2f}")
+                                col3.metric("Aromaticity", f"{analysed_seq.aromaticity():.2f}")
+                            except Exception as e:
+                                st.error(f"Analysis error: {e}")
+                        elif seq_type == "DNA/RNA":
+                            st.metric("GC Content", f"{gc_percent(clean_seq):.2f}%")
+                            if st.button("Calculate Primer Tm (Wallace)"):
+                                st.success(f"Estimated Tm: {wallace_tm(clean_seq)}°C")
+        
+                with bio_sub2:
+                    st.markdown("#### 💎 3D Molecular Visualization")
+                    pdb_id = st.text_input("Enter 4-letter PDB ID", value="1A8M", help="Example: 6MOJ (SARS-CoV-2 Spike), 1A8M (Hemoglobin)").upper()
                     
-                    if seq_type == "Protein":
-                        try:
-                            analysed_seq = ProteinAnalysis(clean_seq)
-                            col1, col2, col3 = st.columns(3)
-                            col1.metric("Molecular Weight", f"{analysed_seq.molecular_weight():.2f} Da")
-                            col2.metric("Isoelectric Point", f"{analysed_seq.isoelectric_point():.2f}")
-                            col3.metric("Aromaticity", f"{analysed_seq.aromaticity():.2f}")
-                        except Exception as e:
-                            st.error(f"Analysis error: {e}")
-                    elif seq_type == "DNA/RNA":
-                        st.metric("GC Content", f"{gc_percent(clean_seq):.2f}%")
-                        if st.button("Calculate Primer Tm (Wallace)"):
-                            st.success(f"Estimated Tm: {wallace_tm(clean_seq)}°C")
-
-            with bio_sub2:
-                st.markdown("#### 💎 3D Molecular Visualization")
-                pdb_id = st.text_input("Enter 4-letter PDB ID", value="1A8M", help="Example: 6MOJ (SARS-CoV-2 Spike), 1A8M (Hemoglobin)").upper()
-                
-                if pdb_id:
-                    with st.container(border=True):
-                        # Use py3Dmol to render the structure
-                        view = py3Dmol.view(query=f'pdb:{pdb_id}')
-                        view.setStyle({'cartoon': {'color': 'spectrum'}})
-                        view.addSurface(py3Dmol.VDW, {'opacity': 0.3, 'color': 'white'})
-                        view.zoomTo()
-                        showmol(view, height=500, width=800)
-                    st.caption(f"Interactive View: {pdb_id}. Use mouse to rotate (Left Click) and zoom (Scroll).")
-
-            with bio_sub3:
-                # This is your original "Database Selection" logic moved here
-                col_sel, col_search = st.columns([2, 1])
-                with col_sel:
-                    portal_choice = st.segmented_control(
-                        "Select Primary Database",
-                        options=["RCSB PDB", "UniProt", "NCBI Gene", "NCBI Structure", "AlphaFold DB"],
-                        default="RCSB PDB"
-                    )
-                with col_search:
-                    portal_query = st.text_input("Database ID/Term", value=query).strip()
-
-                # Logic to construct the correct URL
-                if portal_choice == "RCSB PDB":
-                    target_url = f"https://www.rcsb.org/structure/{portal_query}" if len(portal_query) == 4 else f"https://www.rcsb.org/search?query={quote_plus(portal_query)}"
-                elif portal_choice == "UniProt":
-                    target_url = f"https://www.uniprot.org/uniprotkb?query={quote_plus(portal_query)}"
-                elif portal_choice == "NCBI Gene":
-                    target_url = f"https://www.ncbi.nlm.nih.gov/gene/?term={quote_plus(portal_query)}"
-                elif portal_choice == "NCBI Structure":
-                    target_url = f"https://www.ncbi.nlm.nih.gov/structure/?term={quote_plus(portal_query)}"
-                elif portal_choice == "AlphaFold DB":
-                    target_url = f"https://alphafold.ebi.ac.uk/search/text/{quote_plus(portal_query)}"
-
-                st.link_button(f"🚀 Open {portal_choice} in New Tab", target_url, use_container_width=True)
-                
-                embeddable_portals = {"RCSB PDB", "UniProt"}
-                if portal_choice in embeddable_portals:
+                    if pdb_id:
+                        with st.container(border=True):
+                            # Use py3Dmol to render the structure
+                            view = py3Dmol.view(query=f'pdb:{pdb_id}')
+                            view.setStyle({'cartoon': {'color': 'spectrum'}})
+                            view.addSurface(py3Dmol.VDW, {'opacity': 0.3, 'color': 'white'})
+                            view.zoomTo()
+                            showmol(view, height=500, width=800)
+                        st.caption(f"Interactive View: {pdb_id}. Use mouse to rotate (Left Click) and zoom (Scroll).")
+        
+                with bio_sub3:
+                    # This is your original "Database Selection" logic moved here
+                    col_sel, col_search = st.columns([2, 1])
+                    with col_sel:
+                        portal_choice = st.segmented_control(
+                            "Select Primary Database",
+                            options=["RCSB PDB", "UniProt", "NCBI Gene", "NCBI Structure", "AlphaFold DB"],
+                            default="RCSB PDB"
+                        )
+                    with col_search:
+                        portal_query = st.text_input("Database ID/Term", value=query).strip()
+        
+                    # Logic to construct the correct URL
+                    if portal_choice == "RCSB PDB":
+                        target_url = f"https://www.rcsb.org/structure/{portal_query}" if len(portal_query) == 4 else f"https://www.rcsb.org/search?query={quote_plus(portal_query)}"
+                    elif portal_choice == "UniProt":
+                        target_url = f"https://www.uniprot.org/uniprotkb?query={quote_plus(portal_query)}"
+                    elif portal_choice == "NCBI Gene":
+                        target_url = f"https://www.ncbi.nlm.nih.gov/gene/?term={quote_plus(portal_query)}"
+                    elif portal_choice == "NCBI Structure":
+                        target_url = f"https://www.ncbi.nlm.nih.gov/structure/?term={quote_plus(portal_query)}"
+                    elif portal_choice == "AlphaFold DB":
+                        target_url = f"https://alphafold.ebi.ac.uk/search/text/{quote_plus(portal_query)}"
+        
+                    st.link_button(f"🚀 Open {portal_choice} in New Tab", target_url, use_container_width=True)
+                    
+                    embeddable_portals = {"RCSB PDB", "UniProt"}
+                    if portal_choice in embeddable_portals:
                     st.components.v1.iframe(target_url, height=800, scrolling=True)
                 else:
                     st.warning(f"{portal_choice} blocks embedding. Please use the 'Open in New Tab' button above.")

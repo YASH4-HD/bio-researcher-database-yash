@@ -1355,33 +1355,27 @@ if df is not None and query:
                     theory_text = str(kb_row.get("Theory", "No theory available."))
                     st.write(theory_text)
                     
-                    # 3. DETAILED EXPANDER (Columns: Explanation & Ten_Points)
+                    # 3. DETAILED EXPANDER (Shows ONLY the Detailed Explanation)
                     with st.expander("📘 Detailed Analysis & Key Points", expanded=False):
-                        # Part A: The Detailed Explanation
                         st.markdown("**Detailed Breakdown:**")
-                        detailed_expl = str(kb_row.get("Explanation", "No detailed explanation."))
+                        detailed_expl = str(kb_row.get("Explanation", "No detailed explanation available."))
                         st.write(detailed_expl)
-                        
-                        st.divider() # Small line between the two
-                        
-                        # Part B: The Ten Points
-                        st.markdown("**Key Takeaways:**")
-                        points_text = str(kb_row.get("Ten_Points", ""))
-                        # Convert [Alt+Enter] to actual new lines
-                        clean_points = points_text.replace("[Alt+Enter]", "\n")
-                        st.write(clean_points)
+                        # Note: We removed the Divider and the Ten_Points section from here 
+                        # to avoid redundancy with the CSIR 10-Points tab.
 
-                    # Add to Report Button
+                    # 4. ADD TO REPORT BUTTON
                     if st.button("Add to Research Report", icon="➕", key="kb_report_btn"):
-                        # ... (keep your existing report logic here)
-
                         if 'report_list' not in st.session_state:
                             st.session_state['report_list'] = []
+                        
                         if topic_name not in [item['Topic'] for item in st.session_state['report_list']]:
-                            st.session_state['report_list'].append({"Topic": topic_name, "Notes": str(kb_row.get("Explanation", ""))})
-                            st.toast(f"Added {topic_name}", icon="✅")
+                            st.session_state['report_list'].append({
+                                "Topic": topic_name, 
+                                "Notes": detailed_expl # Saving the detailed explanation to the report
+                            })
+                            st.toast(f"Added {topic_name} to report!", icon="✅")
                         else:
-                            st.warning("Already in report.")
+                            st.warning("Topic already in report.")
 
                 with col_right:
                     with st.container(border=True):

@@ -1282,7 +1282,26 @@ model_name = st.text_input("Model (optional)", value="")
             st.markdown("#### 🔬 Technical Research (NCBI)")
 /workspace/bio-researcher-database-yash$ /bin/bash -lc sed -n '1261,1324p' app.py
 }
-                        target_url = f"https://www.rcsb.org/search?request={quote_plus(json.dumps(rcsb_request, separators=(',', ':')))}"
+                if portal_choice == "RCSB PDB":
+    rcsb_request = {
+        "query": {
+            "type": "terminal",
+            "service": "text",
+            "parameters": {
+                "value": portal_query
+            }
+        },
+        "return_type": "entry"
+    }
+
+    target_url = (
+        "https://www.rcsb.org/search?request=" +
+        quote_plus(json.dumps(rcsb_request))
+    )
+
+elif portal_choice == "UniProt":
+    target_url = f"https://www.uniprot.org/uniprotkb?query={quote_plus(portal_query)}"
+
                 
                 elif portal_choice == "UniProt":
                     target_url = f"https://www.uniprot.org/uniprotkb?query={quote_plus(portal_query)}"

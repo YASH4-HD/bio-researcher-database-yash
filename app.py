@@ -1534,15 +1534,9 @@ if df is not None and query:
                         st.success("✅ GC content is balanced.")
                     else:
                         st.error("❌ GC content outside 40-60% range.")
-
-        
                     else:
-                        # This else belongs to "if not results.empty:"
                         st.warning(f"No matches found for '{query}'.")
-        
-            
-            
-
+                        
 # --- END OF FILE ---
 # =========================
 # SIDEBAR: RESEARCH REPORT

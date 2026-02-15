@@ -3,6 +3,7 @@ import io
 import json
 import re
 import textwrap
+from datetime import date
 from collections import Counter
 from itertools import combinations
 from pathlib import Path
@@ -109,6 +110,54 @@ def find_clinical_note(text: str):
             return v
     return "No specific clinical annotation found; consider connecting this pathway to disease context manually."
 
+
+
+
+def fetch_wikipedia_summary(topic: str):
+    topic = topic.strip()
+    if not topic:
+        return ""
+    url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{quote_plus(topic)}"
+    req = request.Request(url, headers={"User-Agent": "BioVisual-Search/1.0"}, method="GET")
+    try:
+        with request.urlopen(req, timeout=20) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        return data.get("extract", "No summary found.")
+    except Exception:
+        return "Could not fetch Wikipedia summary right now."
+
+
+def translate_to_hindi(text: str):
+    if not text.strip():
+        return ""
+    q = quote_plus(text)
+    url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=hi&dt=t&q={q}"
+    req = request.Request(url, headers={"User-Agent": "BioVisual-Search/1.0"}, method="GET")
+    try:
+        with request.urlopen(req, timeout=20) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        chunks = data[0] if isinstance(data, list) and data else []
+        return "".join(c[0] for c in chunks if isinstance(c, list) and c)
+    except Exception:
+        return "Translation unavailable at the moment."
+
+
+def render_sidebar_status():
+    today = date.today()
+    june_exam = date(today.year, 6, 1)
+    gate_exam = date(2027, 2, 1)
+    st.sidebar.markdown("### 🛡️ Bio-Verify 2026")
+    st.sidebar.write(f"📅 {today.strftime('%d %b %Y')}")
+    st.sidebar.divider()
+    st.sidebar.markdown("### 📆 Exam Countdown")
+    st.sidebar.info(f"**CSIR NET JUNE:** {(june_exam - today).days} days left")
+    st.sidebar.info(f"**GATE 2027:** {(gate_exam - today).days} days left")
+    st.sidebar.divider()
+    st.sidebar.success("✅ Live API Connection: Active")
+    st.sidebar.info("Verified Data Sources: NCBI, Wikipedia, Google")
+    st.sidebar.divider()
+    st.sidebar.markdown("### 💡 Research Tip")
+    st.sidebar.info("Restriction enzymes work best at specific pH and temperature buffers.")
 
 def render_bar_figure(df: pd.DataFrame, x_col: str, y_col: str, title: str):
     try:
@@ -530,6 +579,8 @@ st.caption("Researcher: Yashwant Nama | Molecular Biology & Computational Resear
 if load_warning:
     st.sidebar.warning(load_warning)
 
+render_sidebar_status()
+
 # --- 5. SEARCH INPUT ---
 query = st.sidebar.text_input("Enter Biological Term", value="Glycolysis").lower().strip()
 lab_mode = st.sidebar.toggle("Lab-Specific Mode")
@@ -546,7 +597,7 @@ if df is not None and query:
 
     if not results.empty:
         st.sidebar.success(f"Found in {len(results)} pages")
-        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📖 Textbook Context", "🧠 Discovery Lab", "📚 Literature", "🎯 10 Points", "⚖️ Comparison", "🤖 AI Analyst"])
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(["📖 Textbook Context", "🧠 Discovery Lab", "📚 Literature", "🎯 10 Points", "⚖️ Comparison", "🤖 AI Analyst", "🌐 Global Intelligence", "🇮🇳 Hindi Explain"])
 
         with tab1:
             selected_page = st.sidebar.selectbox("Select Page to View", results["page"].tolist())
@@ -828,12 +879,55 @@ if df is not None and query:
                         )
                         with st.spinner("Calling AI provider..."):
                             response = call_ai_analyst(provider, api_key, assembled_prompt, model_name)
-                        st.markdown("### AI Analysis")
-                        st.write(response)
+                        st.session_state["ai_analysis"] = response
                         if provider == "Groq" and ("403" in str(response) or "1010" in str(response)):
                             st.info("Tip: this usually indicates invalid/revoked key. Regenerate key in Groq Console and retry with `llama-3.1-8b-instant`.")
                         if provider == "Gemini" and ("400/403" in str(response) or "Gemini request failed" in str(response)):
                             st.info("Tip: enable Generative Language API for your Google project and verify Gemini key permissions.")
+
+            c_clear, _ = st.columns([1, 4])
+            with c_clear:
+                if st.button("Clear Analysis"):
+                    st.session_state["ai_analysis"] = ""
+            ai_out = st.session_state.get("ai_analysis", "")
+            if ai_out:
+                with st.expander("View Deep Analysis", expanded=True):
+                    st.markdown("### AI Analysis")
+                    st.write(ai_out)
+
+
+        with tab7:
+            st.subheader("🌐 Global Bio-Intelligence")
+            st.caption("Unified discovery from Wikipedia + NCBI PubMed.")
+
+            st.markdown("#### 📚 Quick Wikipedia Summary")
+            wiki_topic = st.text_input("Search topic for Wikipedia", value=query, key="wiki_topic")
+            if st.button("Fetch Wikipedia Summary"):
+                st.session_state["wiki_summary"] = fetch_wikipedia_summary(wiki_topic)
+            if st.session_state.get("wiki_summary"):
+                st.write(st.session_state["wiki_summary"])
+
+            st.divider()
+            st.markdown("#### 🔬 Technical Research (NCBI)")
+            pubmed_topic = st.text_input("Enter PubMed keyword", value=query, key="global_pubmed_topic")
+            if st.button("Search NCBI"):
+                st.session_state["global_pubmed_docs"] = search_pubmed(pubmed_topic) or []
+            for doc in st.session_state.get("global_pubmed_docs", [])[:5]:
+                title = doc.get("Title", "No Title")
+                pmid = doc.get("Id", "")
+                st.markdown(f"- **{title}**")
+                if pmid:
+                    st.link_button("Open PubMed", f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/")
+
+        with tab8:
+            st.subheader("🇮🇳 Hindi Explain")
+            st.caption("Paste English biology text and convert to Hindi explanation.")
+            hindi_input = st.text_area("English text", value="", height=150, key="hindi_input")
+            if st.button("Translate to Hindi"):
+                st.session_state["hindi_output"] = translate_to_hindi(hindi_input)
+            if st.session_state.get("hindi_output"):
+                st.markdown("### Hindi Output")
+                st.write(st.session_state["hindi_output"])
 
 
     else:

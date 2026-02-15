@@ -1605,7 +1605,8 @@ with st.sidebar:
         gc_display = f"{gc_content:.2f}" if ('gc_content' in locals() and isinstance(gc_content, (int, float))) else "N/A"
         
         # Creating the markdown content
-        summary_text = f"""# 🧬 BioVisual Research Report
+    summary_text = f"""# 🧬 BioVisual Research Report
+        **Generated on:** {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         
         ## 🔍 Target Analysis: {query if 'query' in locals() else 'N/A'}
         - **Sequence Type:** {seq_type if 'seq_type' in locals() else 'N/A'}
@@ -1615,9 +1616,11 @@ with st.sidebar:
         - **Primer:** `{primer_seq if 'primer_seq' in locals() else 'N/A'}`
         - **Melting Temp (Tm):** {tm_display} °C
         - **GC Content:** {gc_display}%
-        - **Experiment Plan:** 
+        
+        ## 📝 Experiment Plan
         {st.session_state.get('exp_plan', 'No plan generated')}
         """
+
         
         # The Download Button
         st.download_button(

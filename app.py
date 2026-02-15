@@ -1249,7 +1249,10 @@ if df is not None and query:
                     # FIX: Ensure the variable name matches the function name
                     cleaned = clean_sequence(seq_input) 
                     seq_type = infer_sequence_type(cleaned)
-                    st.info(f"Detected Type: **{seq_type}**")
+                    if seq_type == "Protein":
+                        st.success(f"🧬 **Detected Type:** {seq_type}")
+                    else:
+                        st.info(f"🧬 **Detected Type:** {seq_type}")
                     
                     if seq_type == "Protein":
                         try:

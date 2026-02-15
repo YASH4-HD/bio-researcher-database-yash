@@ -804,6 +804,15 @@ if df is not None and query:
 
             provider = st.selectbox("Provider", ["Gemini", "Groq", "OpenAI", "HuggingFace"])
             api_key = st.text_input("Enter your API key", type="password", help="Use a Groq/OpenAI/HuggingFace key. This field is masked and only kept in-session.")
+            secret_key = ""
+            if provider == "Gemini":
+                try:
+                    secret_key = st.secrets["GEMINI_API_KEY"]
+                except Exception:
+                    secret_key = ""
+            effective_api_key = api_key.strip() or secret_key
+            if provider == "Gemini" and secret_key and not api_key.strip():
+                st.caption("Using `GEMINI_API_KEY` from Streamlit secrets.")
 
             if provider == "Gemini":
                 model_name = st.selectbox(
@@ -866,12 +875,12 @@ if df is not None and query:
             col_run, col_test = st.columns([1, 1])
             with col_test:
                 if st.button("Test API Connection"):
-                    ok, msg = validate_api_key(provider, api_key)
+                    ok, msg = validate_api_key(provider, effective_api_key)
                     if not ok:
                         st.warning(msg)
                     else:
                         with st.spinner("Testing provider connection..."):
-                            test_resp = call_ai_analyst(provider, api_key, "Reply with OK only.", model_name)
+                            test_resp = call_ai_analyst(provider, effective_api_key, "Reply with OK only.", model_name)
                         if str(test_resp).strip().lower().startswith("ok"):
                             st.success("Connection looks good ✅")
                         else:
@@ -879,20 +888,26 @@ if df is not None and query:
 
             with col_run:
                 if st.button("Run AI Analysis"):
-                    ok, msg = validate_api_key(provider, api_key)
+                    ok, msg = validate_api_key(provider, effective_api_key)
                     if not ok:
                         st.warning(msg)
                     else:
                         assembled_prompt = (
-                            f"Topic: {query}\n\n"
-                            + "10 points:\n- "
+                            "You are a Senior Molecular Biology and Biochemistry Researcher.\n\n"
+                            + "REFERENCE CONTEXT (from user textbook):\n- "
                             + "\n- ".join(context_points[:10])
                             + "\n\n"
-                            + f"Expression context:\n{expression_context or 'Not available'}\n\n"
-                            + f"User instruction:\n{user_prompt}"
+                            + f"USER RESEARCH QUESTION:\n{user_prompt}\n\n"
+                            + f"EXPRESSION CONTEXT:\n{expression_context or 'Not available'}\n\n"
+                            + "INSTRUCTIONS:\n"
+                            + "1. Use the REFERENCE CONTEXT to ground your answer in provided material.\n"
+                            + "2. If context is missing details, use full internal scientific knowledge to expand rigorously.\n"
+                            + "3. If equations are relevant, include LaTeX-ready forms using $$...$$.\n"
+                            + "4. Include sections: Biochemical Mechanism, Mathematical Derivation, and Clinical/Research Application.\n"
+                            + f"5. Keep analysis specific to topic: {query}."
                         )
                         with st.spinner("Calling AI provider..."):
-                            response = call_ai_analyst(provider, api_key, assembled_prompt, model_name)
+                            response = call_ai_analyst(provider, effective_api_key, assembled_prompt, model_name)
                         st.session_state["ai_analysis"] = response
                         if provider == "Groq" and ("403" in str(response) or "1010" in str(response)):
                             st.info("Tip: this usually indicates invalid/revoked key. Regenerate key in Groq Console and retry with `llama-3.1-8b-instant`.")

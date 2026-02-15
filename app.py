@@ -1304,24 +1304,20 @@ if df is not None and query:
         with tab10:
             st.subheader("📘 CSIR-NET / GATE Planner & Study Reader")
             
-            # Base URL for your R2 Bucket
             KB_IMAGES_URL = "https://pub-c99877116ebd42b3b53e7d6779b1bfb6.r2.dev"
 
             if kb_df.empty:
                 st.warning("⚠️ knowledge_base.csv not found or empty. Please upload the file to your repository.")
             else:
-                # 1. Initialize session state for KB specifically
                 if 'kb_idx' not in st.session_state:
                     st.session_state.kb_idx = 0
 
-                # 2. Navigation Toolbar
+                # 1. Navigation Toolbar
                 c1, c2, c3, c4 = st.columns([0.6, 0.8, 0.6, 4])
-                
                 with c1:
                     if st.button("⬅ PREV", key="kb_prev", use_container_width=True, disabled=st.session_state.kb_idx == 0):
                         st.session_state.kb_idx -= 1
                         st.rerun()
-                
                 with c2:
                     curr = st.session_state.kb_idx + 1
                     total = len(kb_df)
@@ -1331,7 +1327,6 @@ if df is not None and query:
                             <p style="margin: 0; font-weight: bold; font-size: 1rem;">{curr} / {total}</p>
                         </div>
                     """, unsafe_allow_html=True)
-                
                 with c3:
                     if st.button("NEXT ➡", key="kb_next", use_container_width=True, disabled=st.session_state.kb_idx == len(kb_df) - 1):
                         st.session_state.kb_idx += 1
@@ -1339,46 +1334,50 @@ if df is not None and query:
 
                 st.divider()
 
-                # 3. Get the current row from knowledge_base.csv
                 kb_row = kb_df.iloc[st.session_state.kb_idx]
-                
-                # 4. Layout: Text on Left, Image on Right
                 col_left, col_right = st.columns([2, 1])
                 
                 with col_left:
-                    # Display Topic and Section
+                    # TITLE
                     st.header(kb_row.get("Topic", "Untitled Topic"))
-                    st.caption(f"Section: {kb_row.get('Section', 'N/A')}")
                     
-                    # Display Main Explanation
-                    st.markdown("### 📝 Explanation")
+                    # --- INTERACTIVE TAG GENERATOR (As seen in Image 1) ---
+                    bio_keywords = ["DNA", "RNA", "Protein", "Enzyme", "CRISPR", "Metabolism", "Pathway", "Cell"]
+                    text_for_tags = str(kb_row.get("Explanation", "")) + " " + str(kb_row.get("Topic", ""))
+                    found_tags = [tag for tag in bio_keywords if tag.lower() in text_for_tags.lower()]
+                    
+                    if found_tags:
+                        tag_html = ""
+                        for t in found_tags:
+                            tag_html += f'<span style="background-color:#e1f5fe; color:#01579b; padding:4px 12px; border-radius:15px; margin-right:8px; font-size:0.75rem; font-weight:bold; border:1px solid #b3e5fc;">🧬 {t}</span>'
+                        st.markdown(tag_html, unsafe_allow_html=True)
+                        st.write("") # Spacer
+
+                    # EXPLANATION
                     st.write(kb_row.get("Explanation", "No explanation provided."))
                     
-                    # Display Ten Points in an Expander
-                    with st.expander("🎯 Ten Key Points (Exam Focus)", expanded=True):
-                        points = kb_row.get("Ten_Points", "No points available.")
+                    # DETAILED ANALYSIS EXPANDER (Matches Image 1 style)
+                    with st.expander("📘 Detailed Analysis & Mechanism", expanded=False):
+                        # This shows the 'Ten_Points' or 'Detailed_Explanation' column
+                        points = kb_row.get("Ten_Points", "No extra details available.")
                         st.write(points)
                     
                     if st.button("Add to Research Report", icon="➕", key="kb_report_btn"):
                         st.toast(f"Added {kb_row.get('Topic')} to report!", icon="✅")
 
                 with col_right:
-                    st.markdown("### 🖼️ Study Diagram")
-                    
-                    # DYNAMIC LOGIC: Fetch image based on row number (1.jpg, 2.jpg...)
-                    img_number = st.session_state.kb_idx + 1
-                    full_img_url = f"{KB_IMAGES_URL}/{img_number}.jpg"
-                    
-                    try:
-                        st.image(
-                            full_img_url, 
-                            use_container_width=True, 
-                            caption=f"Visual for Topic {img_number}"
-                        )
-                        # Helpful link for the researcher to view full size
-                        st.link_button("🔍 View Full Image", full_img_url)
-                    except:
-                        st.info(f"Image {img_number}.jpg not found in R2 bucket.")
+                    # DIAGRAM BOX (Matches Image 1 layout)
+                    with st.container(border=True):
+                        st.markdown("**🖼️ View Topic Diagram**")
+                        img_number = st.session_state.kb_idx + 1
+                        full_img_url = f"{KB_IMAGES_URL}/{img_number}.jpg"
+                        
+                        st.image(full_img_url, use_container_width=True)
+                        st.caption(f"Visual: {kb_row.get('Topic')}")
+                        
+                        # Full view button
+                        st.link_button("🔍 View Full Image", full_img_url, use_container_width=True)
+
 
 
         with tab11:

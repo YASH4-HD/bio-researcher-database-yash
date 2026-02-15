@@ -697,56 +697,60 @@ if df is not None and query:
                 else:
                     st.info("No related suggestions found yet.")
 
-            # 2. Visual Knowledge Graph & Download
+            # 2. Visual Knowledge Graph (RE-ENGINEERED)
             if "Visual Knowledge Graph" in feature_flags:
                 st.markdown("#### 🕸️ Visual Knowledge Graph")
+                
+                # Force fresh data for the current query
                 concepts_df = sanitize_concept_df(compute_concept_connections(results))
                 
                 if concepts_df.empty:
-                    st.warning(f"⚠️ No connections found for '{query}'.")
+                    st.warning(f"⚠️ No connections found for '{query}'. The graph requires at least two related biological terms to appear in the same sentence.")
                 else:
-                    # Create the DOT string
-                    dot = "graph G {\n"
-                    dot += "  layout=neato; overlap=false; splines=true; sep='+25';\n"
-                    dot += "  node [style=filled, fontname='Helvetica', fontsize=11];\n"
-                    dot += f'  "{query.upper()}" [shape=doublecircle, fillcolor="#FFD700", color="#DAA520", penwidth=3];\n'
-                    
-                    for _, row in concepts_df.head(15).iterrows():
-                        a, b = str(row["term_a"]), str(row["term_b"])
-                        count = int(row["co_occurrences"])
-                        def get_color(term):
-                            t = term.lower()
-                            if any(x in t for x in ["ase", "kinase", "enzyme"]): return "#C1E1C1"
-                            if any(x in t for x in ["glucose", "atp", "acid", "phosphate"]): return "#FFD580"
-                            return "#d1ecff"
-                        dot += f'  "{a}" [fillcolor="{get_color(a)}"];\n'
-                        dot += f'  "{b}" [fillcolor="{get_color(b)}"];\n'
-                        dot += f'  "{a}" -- "{b}" [label="{count}", penwidth={min(count/5, 5)}];\n'
-                    dot += "}"
-                    
-                    # Render Graph
-                    st.graphviz_chart(dot, use_container_width=True)
+                    try:
+                        # 1. Build a simplified, safer DOT string
+                        dot = "graph G {\n"
+                        dot += "  rankdir=LR;\n"  # Left to Right layout is more stable than neato
+                        dot += "  node [style=filled, fontname='Arial', fontsize=10, shape=circle, fixedsize=true, width=1.2];\n"
+                        
+                        # Central Node - use a simple ID to avoid quote issues
+                        main_node = query.replace(" ", "_").upper()
+                        dot += f'  "{main_node}" [fillcolor="#FFD700", shape=doublecircle, width=1.5];\n'
+                        
+                        # 2. Add connections
+                        for _, row in concepts_df.head(12).iterrows():
+                            a = str(row["term_a"]).replace(" ", "_")
+                            b = str(row["term_b"]).replace(" ", "_")
+                            count = int(row["co_occurrences"])
+                            
+                            # Simple color logic
+                            color = "#C1E1C1" if "ase" in a.lower() else "#d1ecff"
+                            
+                            dot += f'  "{a}" [fillcolor="{color}"];\n'
+                            dot += f'  "{a}" -- "{b}" [label="{count}"];\n'
+                        
+                        dot += "}"
+                        
+                        # 3. Render
+                        st.graphviz_chart(dot)
+                        
+                    except Exception as e:
+                        st.error(f"Visualization Engine Error: {e}")
+                        st.info("Try searching for a core metabolic term like 'Glycolysis' to reset the engine.")
 
-                    # --- DOWNLOAD SECTION ---
+                    # --- DOWNLOAD & DATA SECTION ---
                     fig_data = concepts_df.head(10).copy()
                     fig_data["edge"] = fig_data["term_a"] + " ↔ " + fig_data["term_b"]
-                    
-                    # This generates the PNG for download
-                    fig_buf = render_bar_figure(fig_data, "edge", "co_occurrences", f"Knowledge Graph Edge Weights: {query}")
+                    fig_buf = render_bar_figure(fig_data, "edge", "co_occurrences", f"Weights: {query}")
                     
                     col_dl, col_raw = st.columns([1, 1])
                     with col_dl:
                         if fig_buf:
-                            st.download_button(
-                                label="💾 Download Graph Weights (PNG)",
-                                data=fig_buf,
-                                file_name=f"{query}_knowledge_graph.png",
-                                mime="image/png",
-                                use_container_width=True
-                            )
+                            st.download_button("💾 Download Graph PNG", fig_buf, f"{query}_graph.png", "image/png", use_container_width=True)
                     with col_raw:
                         with st.expander("📊 View Raw Data"):
                             st.dataframe(concepts_df, use_container_width=True)
+
 
             # 3. Metabolic Map Link
             if "Metabolic Map Link" in feature_flags and is_metabolite_like(query):

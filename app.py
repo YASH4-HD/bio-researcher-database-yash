@@ -261,14 +261,29 @@ def load_knowledge_base():
     if not csv_path.exists():
         return pd.DataFrame()
     try:
-        # Load the CSV and clean column names
+        # 1. Load CSV
         kb_df = pd.read_csv(csv_path)
+        
+        # 2. Clean headers (remove spaces)
         kb_df.columns = [c.strip() for c in kb_df.columns]
+        
+        # 3. CRITICAL: Remove the 'dummy' header row if it exists in the data
+        # If Row 1 in Excel is "Topic, Section...", this removes it from the data rows
+        kb_df = kb_df[kb_df['Topic'].astype(str).lower() != 'topic']
+        
+        # 4. Filter only the columns we actually use to avoid alignment shifts
+        expected_cols = ['Topic', 'Explanation', 'Ten_Points']
+        existing_cols = [c for c in expected_cols if c in kb_df.columns]
+        kb_df = kb_df[existing_cols]
+        
+        # 5. Drop empty rows and reset index
+        kb_df = kb_df.dropna(subset=['Topic']).reset_index(drop=True)
+        
         return kb_df
-    except Exception:
+    except Exception as e:
+        st.error(f"Error loading Knowledge Base: {e}")
         return pd.DataFrame()
 
-# Call the loader
 kb_df = load_knowledge_base()
 
 @st.cache_data

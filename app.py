@@ -11,15 +11,19 @@ Entrez.email = "yashwant.nama@example.com"
 @st.cache_data
 def load_index():
     try:
-        df = pd.read_csv("lehninger_index.csv")
-        if df.empty:
-            raise ValueError("CSV is empty")
-        df['text_content'] = df['text_content'].astype(str).str.lower()
+        # Check if file exists and is not empty
+        df = pd.read_csv("lehninger_index.csv", on_bad_lines='skip')
+        if df.empty or len(df.columns) < 2:
+            raise ValueError("CSV is empty or poorly formatted")
+        
+        df.columns = [c.strip().lower() for c in df.columns]
+        if 'text_content' in df.columns:
+            df['text_content'] = df['text_content'].astype(str).str.lower()
         return df
     except Exception as e:
-        st.sidebar.warning(f"Demo Mode Active (CSV Error: {e})")
-        data = {'page': [44, 999], 'text_content': ['glycolysis pathway', 'atp synthesis']}
-        return pd.DataFrame(data)
+        st.sidebar.error(f"CSV Error: {e}")
+        # Fallback for demonstration
+        return pd.DataFrame({'page': [44], 'text_content': ['glycolysis content brief preface foundations']})
 
 df = load_index()
 
@@ -29,15 +33,13 @@ def search_pubmed(search_query):
         h_search = Entrez.esearch(db="pubmed", term=search_query, retmax=5)
         res_search = Entrez.read(h_search)
         h_search.close()
-        
         ids = res_search.get("IdList", [])
         if not ids: return None
-            
         h_summ = Entrez.esummary(db="pubmed", id=",".join(ids))
         summaries = Entrez.read(h_summ)
         h_summ.close()
         return summaries
-    except Exception as e:
+    except:
         return None
 
 # --- 4. UI HEADER ---
@@ -49,23 +51,29 @@ query = st.sidebar.text_input("Enter Biological Term", value="Glycolysis").lower
 
 # --- 6. MAIN LOGIC ---
 if df is not None and query:
-    results = df[df['text_content'].str.contains(query, na=False)]
-    
+    # Search logic
+    if 'text_content' in df.columns:
+        results = df[df['text_content'].str.contains(query, na=False)]
+    else:
+        results = df # Fallback
+
     if not results.empty:
         st.sidebar.success(f"Found in {len(results)} pages")
         selected_page = st.sidebar.selectbox("Select Page to View", results['page'].tolist())
         
-        # --- NEW SINGLE COLUMN LAYOUT ---
+        # --- IMPROVED IMAGE DISPLAY ---
         st.subheader(f"📄 Textbook Context: Page {selected_page}")
         
-        # Display full page image. 
-        # Streamlit automatically allows "Click to enlarge" on images.
-        full_url = f"{R2_URL}/full_pages/page_{selected_page}.png"
-        st.image(full_url, 
-                 caption="Click image to view full size", 
-                 use_container_width=True)
+        # We use a container to center the image and limit width
+        col_img, _ = st.columns([2, 1]) 
+        with col_img:
+            full_url = f"{R2_URL}/full_pages/page_{selected_page}.png"
+            # Setting width=700 prevents it from being "too big"
+            st.image(full_url, 
+                     caption=f"Lehninger Page {selected_page} (Click to expand)", 
+                     width=700) 
                 
-        # --- PUBMED SECTION (UPDATED) ---
+        # --- PUBMED SECTION ---
         st.divider()
         st.subheader(f"📚 Latest Research for '{query.capitalize()}'")
         
@@ -74,23 +82,11 @@ if df is not None and query:
                 data = search_pubmed(query)
                 if data:
                     for doc in data:
-                        # Professional formatting
                         st.markdown(f"#### {doc.get('Title', 'No Title')}")
-                        journal = doc.get('Source', 'Unknown Journal')
-                        date = doc.get('PubDate', 'N/A')
-                        st.write(f"📖 *{journal}* | 📅 {date}")
-                        
-                        # Added Link Button
-                        st.link_button("Read Full Paper on PubMed", 
-                                       f"https://pubmed.ncbi.nlm.nih.gov/{doc.get('Id', '')}/")
+                        st.write(f"📖 *{doc.get('Source', 'Journal')}* | 📅 {doc.get('PubDate', 'N/A')}")
+                        st.link_button("Read Full Paper", f"https://pubmed.ncbi.nlm.nih.gov/{doc.get('Id', '')}/")
                         st.write("---")
                 else:
                     st.warning("No articles found.")
-
-        with st.expander("View Page OCR Text"):
-            text = results[results['page'] == selected_page]['text_content'].values[0]
-            st.write(text)
     else:
         st.warning(f"No matches found for '{query}'.")
-else:
-    st.info("Please enter a search term in the sidebar.")

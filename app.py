@@ -1279,18 +1279,34 @@ if df is not None and query:
 
             with bio_sub2:
                 st.markdown("#### 💎 3D Molecular Visualization")
-                pdb_id_input = st.text_input("Enter 4-letter PDB ID", value="1A8M").upper().strip()
+                
+                # Add quick-load buttons for common structures
+                st.write("Quick Load Samples:")
+                c1, c2, c3, c4 = st.columns(4)
+                with c1:
+                    if st.button("Spike RBD (6M0J)"): pdb_id_input = "6M0J"
+                with c2:
+                    if st.button("Insulin (1TRZ)"): pdb_id_input = "1TRZ"
+                with c3:
+                    if st.button("Hemoglobin (1A3N)"): pdb_id_input = "1A3N"
+                with c4:
+                    if st.button("DNA Polymerase (1T7P)"): pdb_id_input = "1T7P"
+
+                pdb_id_input = st.text_input("Enter 4-letter PDB ID", value="6M0J").upper().strip()
                 
                 if len(pdb_id_input) == 4:
-                    with st.container(border=True):
-                        view = py3Dmol.view(query=f'pdb:{pdb_id_input}')
-                        view.setStyle({'cartoon': {'color': 'spectrum'}})
-                        view.addSurface(py3Dmol.VDW, {'opacity': 0.3, 'color': 'white'})
-                        view.zoomTo()
-                        showmol(view, height=500, width=800)
-                    st.caption(f"Interactive View: {pdb_id_input}. Use mouse to rotate and zoom.")
+                    with st.spinner(f"Fetching {pdb_id_input} from RCSB..."):
+                        with st.container(border=True):
+                            view = py3Dmol.view(query=f'pdb:{pdb_id_input}')
+                            view.setStyle({'cartoon': {'color': 'spectrum'}})
+                            # Add a "stick" style for the active site residues
+                            view.addSurface(py3Dmol.VDW, {'opacity': 0.3, 'color': 'white'})
+                            view.zoomTo()
+                            showmol(view, height=500, width=800)
+                    st.success(f"Displaying PDB: {pdb_id_input}")
                 else:
-                    st.warning("Please enter a valid 4-character PDB ID (e.g., 6MOJ, 1A8M).")
+                    st.warning("Please enter a valid 4-character PDB ID.")
+
 
             with bio_sub3:
                 st.markdown("#### 🔍 Primary Database Access")

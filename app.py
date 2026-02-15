@@ -21,6 +21,7 @@ import streamlit as st
 from Bio import Entrez
 from Bio.SeqUtils import gc_fraction, molecular_weight
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
+from urllib.parse import quote_plus
 
 HAS_MATPLOTLIB = importlib.util.find_spec("matplotlib") is not None
 HAS_PLOTLY = importlib.util.find_spec("plotly") is not None

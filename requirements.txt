@@ -9,3 +9,5 @@ langchain-huggingface
 langchain-pinecone
 sentence-transformers
 faiss-cpu
+biopython
+boto3

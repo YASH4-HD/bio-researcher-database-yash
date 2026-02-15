@@ -249,7 +249,7 @@ if df is not None and query:
 
                     st.markdown(f"#### {title}")
                     st.write(f"📖 *{source}* | 📅 {pubdate}")
-                    st.link_button("Read Full Paper", f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/", key=f"paper_{i}_{pmid}")
+                    st.link_button("Read Full Paper", f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/")
 
                     symbols = extract_gene_symbols(title)
                     if symbols:
@@ -259,7 +259,6 @@ if df is not None and query:
                                 st.link_button(
                                     f"Gene: {sym}",
                                     f"https://www.ncbi.nlm.nih.gov/gene/?term={sym}",
-                                    key=f"gene_{i}_{sym}",
                                 )
 
                     if "Reading List Builder" in feature_flags:

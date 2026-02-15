@@ -1347,53 +1347,64 @@ if df is not None and query:
                         st.session_state.kb_idx += 1
                         st.rerun()
 
+                # --- FIXED: ALL CONTENT BELOW IS NOW INDENTED UNDER 'else' ---
                 st.divider()
 
-                # --- PASTE THIS STARTING AT LINE 1349 ---
-        st.divider()
-
-        # Fetch the current row from your CSV
-        kb_row = kb_df.iloc[st.session_state.kb_idx]
-        
-        col_left, col_right = st.columns([2, 1])
-        
-        with col_left:
-            # 1. TOPIC TITLE
-            topic_name = str(kb_row.get("Topic", "Untitled Topic")).strip()
-            st.header(topic_name)
-            
-            # 2. AUTOMATIC TAGS
-            bio_keywords = ["DNA", "RNA", "Protein", "Enzyme", "CRISPR", "Metabolism", "Pathway", "Cell"]
-            expl_str = str(kb_row.get("Explanation", ""))
-            text_for_tags = expl_str + " " + topic_name
-            found_tags = [tag for tag in bio_keywords if tag.lower() in text_for_tags.lower()]
-            
-            if found_tags:
-                tag_html = "".join([f'<span style="background-color:#e1f5fe; color:#01579b; padding:4px 12px; border-radius:15px; margin-right:8px; font-size:0.75rem; font-weight:bold; border:1px solid #b3e5fc;">🧬 {t}</span>' for t in found_tags])
-                st.markdown(tag_html, unsafe_allow_html=True)
-                st.write("") # Spacer
-
-            # 3. MAIN EXPLANATION
-            st.markdown("### 📖 Theory & Mechanism")
-            explanation = str(kb_row.get("Explanation", "No explanation provided."))
-            st.write(explanation)
-            
-            # 4. DETAILED 10-POINTS EXPANDER
-            with st.expander("📘 Detailed Analysis & Key Points", expanded=False):
-                points = str(kb_row.get("Ten_Points", "No extra details available."))
-                # Fixes the Excel line-break issue
-                st.write(points.replace("_x000D_", "\n").replace("[Alt+Enter]", "\n"))
-
-        with col_right:
-            # 5. DYNAMIC IMAGE FROM R2
-            with st.container(border=True):
-                st.markdown("**🖼️ Topic Diagram**")
-                # This uses the current row index + 1 to fetch 1.jpg, 2.jpg, etc.
-                img_number = st.session_state.kb_idx + 1
-                full_img_url = f"{KB_IMAGES_URL}/{img_number}.jpg"
+                # Fetch the current row from your CSV
+                kb_row = kb_df.iloc[st.session_state.kb_idx]
                 
-                st.image(full_img_url, use_container_width=True, caption=f"Visual for: {topic_name}")
-                st.link_button("🔍 View Full Image", full_img_url, use_container_width=True)
+                col_left, col_right = st.columns([2, 1])
+                
+                with col_left:
+                    # 1. TOPIC TITLE
+                    topic_name = str(kb_row.get("Topic", "Untitled Topic")).strip()
+                    st.header(topic_name)
+                    
+                    # 2. AUTOMATIC TAGS
+                    bio_keywords = ["DNA", "RNA", "Protein", "Enzyme", "CRISPR", "Metabolism", "Pathway", "Cell"]
+                    expl_str = str(kb_row.get("Explanation", ""))
+                    text_for_tags = expl_str + " " + topic_name
+                    found_tags = [tag for tag in bio_keywords if tag.lower() in text_for_tags.lower()]
+                    
+                    if found_tags:
+                        tag_html = "".join([f'<span style="background-color:#e1f5fe; color:#01579b; padding:4px 12px; border-radius:15px; margin-right:8px; font-size:0.75rem; font-weight:bold; border:1px solid #b3e5fc;">🧬 {t}</span>' for t in found_tags])
+                        st.markdown(tag_html, unsafe_allow_html=True)
+                        st.write("") 
+
+                    # 3. MAIN EXPLANATION
+                    st.markdown("### 📖 Theory & Mechanism")
+                    explanation = str(kb_row.get("Explanation", "No explanation provided."))
+                    st.write(explanation)
+                    
+                    # 4. DETAILED 10-POINTS EXPANDER
+                    with st.expander("📘 Detailed Analysis & Key Points", expanded=False):
+                        points = str(kb_row.get("Ten_Points", "No extra details available."))
+                        st.write(points.replace("_x000D_", "\n").replace("[Alt+Enter]", "\n"))
+
+                    # 5. ADD TO REPORT BUTTON
+                    if st.button("Add to Research Report", icon="➕", key="kb_report_btn"):
+                        if 'report_list' not in st.session_state:
+                            st.session_state['report_list'] = []
+                        
+                        topic_to_add = kb_row.get("Topic", "Untitled")
+                        notes_to_add = kb_row.get("Explanation", "No notes available.")
+                    
+                        if topic_to_add not in [item['Topic'] for item in st.session_state['report_list']]:
+                            st.session_state['report_list'].append({"Topic": topic_to_add, "Notes": notes_to_add})
+                            st.toast(f"Added {topic_to_add} to report!", icon="✅")
+                        else:
+                            st.warning("Topic already in report.")
+
+                with col_right:
+                    # 6. DYNAMIC IMAGE FROM R2
+                    with st.container(border=True):
+                        st.markdown("**🖼️ Topic Diagram**")
+                        img_number = st.session_state.kb_idx + 1
+                        full_img_url = f"{KB_IMAGES_URL}/{img_number}.jpg"
+                        
+                        st.image(full_img_url, use_container_width=True, caption=f"Visual for: {topic_name}")
+                        st.link_button("🔍 View Full Image", full_img_url, use_container_width=True)
+
 
         # --- END OF ADDED CODE ---
 

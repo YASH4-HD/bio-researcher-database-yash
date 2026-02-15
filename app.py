@@ -264,15 +264,25 @@ def generate_query_suggestions(search_query: str, text_series: pd.Series):
 @st.cache_data
 def compute_concept_connections(results_df: pd.DataFrame, max_rows: int = 150):
     pair_counts = Counter()
+    # PRIORITY: Ensure these words are always processed if found
+    priority_biowords = {"protein", "enzyme", "glucose", "metabolism", "atp", "cell", "gene"}
 
     for _, row in results_df.head(max_rows).iterrows():
-        tokens = set(re.findall(r"[a-z]{5,}", str(row.get("text_content", ""))))
-        tokens = {normalize_token(t) for t in tokens if pseudo_pos_ok(normalize_token(t))}
+        # 1. Get tokens and convert to lowercase immediately
+        raw_tokens = set(re.findall(r"[a-z]{5,}", str(row.get("text_content", "")).lower()))
+        
+        # 2. Filter tokens but KEEP priority words even if they fail other checks
+        tokens = {normalize_token(t) for t in raw_tokens 
+                  if pseudo_pos_ok(normalize_token(t)) or t in priority_biowords}
+        
+        # 3. Count co-occurrences
         for a, b in combinations(sorted(tokens), 2):
             pair_counts[(a, b)] += 1
 
-    top_pairs = [{"term_a": a, "term_b": b, "co_occurrences": c} for (a, b), c in pair_counts.most_common(20)]
+    # Increase head(30) to see more bubbles
+    top_pairs = [{"term_a": a, "term_b": b, "co_occurrences": c} for (a, b), c in pair_counts.most_common(30)]
     return pd.DataFrame(top_pairs)
+
 
 
 def keyword_set(text: str):

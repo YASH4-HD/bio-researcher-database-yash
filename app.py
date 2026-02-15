@@ -1318,11 +1318,10 @@ if df is not None and query:
                 # --- PLACE THIS PART INSIDE YOUR TAB 10 BLOCK ---
         with tab10:
             st.subheader("📘 CSIR-NET / GATE Planner & Study Reader")
-            
             KB_IMAGES_URL = "https://pub-c99877116ebd42b3b53e7d6779b1bfb6.r2.dev"
 
             if kb_df.empty:
-                st.warning("⚠️ knowledge_base.csv not found or empty. Please upload the file to your repository.")
+                st.warning("⚠️ knowledge_base.csv not found or empty.")
             else:
                 if 'kb_idx' not in st.session_state:
                     st.session_state.kb_idx = 0
@@ -1336,109 +1335,49 @@ if df is not None and query:
                 with c2:
                     curr = st.session_state.kb_idx + 1
                     total = len(kb_df)
-                    st.markdown(f"""
-                        <div style="border: 1px solid #ddd; border-radius: 5px; padding: 2px; text-align: center; background-color: #f0f2f6; line-height: 1.2;">
-                            <p style="margin: 0; font-size: 0.7rem; color: #555;">TOPIC</p>
-                            <p style="margin: 0; font-weight: bold; font-size: 1rem;">{curr} / {total}</p>
-                        </div>
-                    """, unsafe_allow_html=True)
+                    st.markdown(f'<div style="border: 1px solid #ddd; border-radius: 5px; padding: 2px; text-align: center; background-color: #f0f2f6; line-height: 1.2;"><p style="margin: 0; font-size: 0.7rem; color: #555;">TOPIC</p><p style="margin: 0; font-weight: bold; font-size: 1rem;">{curr} / {total}</p></div>', unsafe_allow_html=True)
                 with c3:
                     if st.button("NEXT ➡", key="kb_next", use_container_width=True, disabled=st.session_state.kb_idx == len(kb_df) - 1):
                         st.session_state.kb_idx += 1
                         st.rerun()
 
-                # --- FIXED: ALL CONTENT BELOW IS NOW INDENTED UNDER 'else' ---
                 st.divider()
-
-                # Fetch the current row from your CSV
                 kb_row = kb_df.iloc[st.session_state.kb_idx]
-                
                 col_left, col_right = st.columns([2, 1])
                 
                 with col_left:
-                    # 1. TOPIC TITLE
                     topic_name = str(kb_row.get("Topic", "Untitled Topic")).strip()
                     st.header(topic_name)
                     
-                    # 2. AUTOMATIC TAGS
+                    # Tags
                     bio_keywords = ["DNA", "RNA", "Protein", "Enzyme", "CRISPR", "Metabolism", "Pathway", "Cell"]
-                    expl_str = str(kb_row.get("Explanation", ""))
-                    text_for_tags = expl_str + " " + topic_name
-                    found_tags = [tag for tag in bio_keywords if tag.lower() in text_for_tags.lower()]
-                    
+                    found_tags = [tag for tag in bio_keywords if tag.lower() in (str(kb_row.get("Explanation", "")) + topic_name).lower()]
                     if found_tags:
                         tag_html = "".join([f'<span style="background-color:#e1f5fe; color:#01579b; padding:4px 12px; border-radius:15px; margin-right:8px; font-size:0.75rem; font-weight:bold; border:1px solid #b3e5fc;">🧬 {t}</span>' for t in found_tags])
                         st.markdown(tag_html, unsafe_allow_html=True)
-                        st.write("") 
 
-                    # 3. MAIN EXPLANATION
                     st.markdown("### 📖 Theory & Mechanism")
-                    explanation = str(kb_row.get("Explanation", "No explanation provided."))
-                    st.write(explanation)
+                    st.write(str(kb_row.get("Explanation", "No explanation provided.")))
                     
-                    # 4. DETAILED 10-POINTS EXPANDER
-                    with st.expander("📘 Detailed Analysis & Key Points", expanded=False):
-                        points = str(kb_row.get("Ten_Points", "No extra details available."))
-                        st.write(points.replace("_x000D_", "\n").replace("[Alt+Enter]", "\n"))
+                    with st.expander("📘 Detailed Analysis", expanded=False):
+                        st.write(str(kb_row.get("Ten_Points", "")).replace("_x000D_", "\n"))
 
-                    # 5. ADD TO REPORT BUTTON
+                    # ADD TO REPORT (Properly nested inside button)
                     if st.button("Add to Research Report", icon="➕", key="kb_report_btn"):
                         if 'report_list' not in st.session_state:
                             st.session_state['report_list'] = []
-                        
-                        topic_to_add = kb_row.get("Topic", "Untitled")
-                        notes_to_add = kb_row.get("Explanation", "No notes available.")
-                    
-                        if topic_to_add not in [item['Topic'] for item in st.session_state['report_list']]:
-                            st.session_state['report_list'].append({"Topic": topic_to_add, "Notes": notes_to_add})
-                            st.toast(f"Added {topic_to_add} to report!", icon="✅")
+                        if topic_name not in [item['Topic'] for item in st.session_state['report_list']]:
+                            st.session_state['report_list'].append({"Topic": topic_name, "Notes": str(kb_row.get("Explanation", ""))})
+                            st.toast(f"Added {topic_name}", icon="✅")
                         else:
-                            st.warning("Topic already in report.")
+                            st.warning("Already in report.")
 
                 with col_right:
-                    # 6. DYNAMIC IMAGE FROM R2
                     with st.container(border=True):
                         st.markdown("**🖼️ Topic Diagram**")
-                        img_number = st.session_state.kb_idx + 1
-                        full_img_url = f"{KB_IMAGES_URL}/{img_number}.jpg"
-                        
-                        st.image(full_img_url, use_container_width=True, caption=f"Visual for: {topic_name}")
-                        st.link_button("🔍 View Full Image", full_img_url, use_container_width=True)
-
-
-        # --- END OF ADDED CODE ---
-
-
-    
-        
-            
-            # Get the data from the current row
-            topic_to_add = kb_row.get("Topic", "Untitled")
-            notes_to_add = kb_row.get("Explanation", "No notes available.")
-        
-            # Prevent duplicates
-            if topic_to_add not in [item['Topic'] for item in st.session_state['report_list']]:
-                st.session_state['report_list'].append({
-                    "Topic": topic_to_add,
-                    "Notes": notes_to_add
-                })
-                st.toast(f"Added {topic_to_add} to report!", icon="✅")
-            else:
-                st.warning("Topic already in report.")
-
-
-                with col_right:
-                    # DIAGRAM BOX (Matches Image 1 layout)
-                    with st.container(border=True):
-                        st.markdown("**🖼️ View Topic Diagram**")
-                        img_number = st.session_state.kb_idx + 1
-                        full_img_url = f"{KB_IMAGES_URL}/{img_number}.jpg"
-                        
-                        st.image(full_img_url, use_container_width=True)
-                        st.caption(f"Visual: {kb_row.get('Topic')}")
-                        
-                        # Full view button
-                        st.link_button("🔍 View Full Image", full_img_url, use_container_width=True)
+                        img_url = f"{KB_IMAGES_URL}/{st.session_state.kb_idx + 1}.jpg"
+                        st.image(img_url, use_container_width=True)
+                        st.link_button("🔍 Full Image", img_url, use_container_width=True)
         with tab11:
             st.header("🧠 CSIR-NET / GATE: 10 Key Exam Points")
             

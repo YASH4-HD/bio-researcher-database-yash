@@ -68,12 +68,22 @@ def load_index():
 
 @st.cache_data
 def generate_query_suggestions(search_query: str, text_series: pd.Series):
+    def normalize_token(token: str):
+        token = token.lower().strip()
+        if len(token) > 4 and token.endswith("ies"):
+            return token[:-3] + "y"
+        if len(token) > 4 and token.endswith("es"):
+            return token[:-2]
+        if len(token) > 3 and token.endswith("s") and not token.endswith("ss"):
+            return token[:-1]
+        return token
+
     suggestions = set(BIO_SYNONYMS.get(search_query, []))
 
     token_counts = Counter()
     for txt in text_series.dropna().head(250):
         tokens = re.findall(r"[a-z]{4,}", str(txt))
-        token_counts.update(t for t in tokens if t not in STOP_WORDS)
+        token_counts.update(normalize_token(t) for t in tokens if t not in STOP_WORDS)
 
     for term, _ in token_counts.most_common(35):
         if search_query in term or term in search_query:
@@ -87,11 +97,21 @@ def generate_query_suggestions(search_query: str, text_series: pd.Series):
 
 @st.cache_data
 def compute_concept_connections(results_df: pd.DataFrame, max_rows: int = 150):
+    def normalize_token(token: str):
+        token = token.lower().strip()
+        if len(token) > 4 and token.endswith("ies"):
+            return token[:-3] + "y"
+        if len(token) > 4 and token.endswith("es"):
+            return token[:-2]
+        if len(token) > 3 and token.endswith("s") and not token.endswith("ss"):
+            return token[:-1]
+        return token
+
     pair_counts = Counter()
 
     for _, row in results_df.head(max_rows).iterrows():
         tokens = set(re.findall(r"[a-z]{5,}", str(row.get("text_content", ""))))
-        tokens = {t for t in tokens if t not in STOP_WORDS}
+        tokens = {normalize_token(t) for t in tokens if t not in STOP_WORDS}
         for a, b in combinations(sorted(tokens), 2):
             pair_counts[(a, b)] += 1
 
@@ -103,10 +123,59 @@ def compute_concept_connections(results_df: pd.DataFrame, max_rows: int = 150):
 
 
 def keyword_set(text: str):
+    def normalize_token(token: str):
+        token = token.lower().strip()
+        if len(token) > 4 and token.endswith("ies"):
+            return token[:-3] + "y"
+        if len(token) > 4 and token.endswith("es"):
+            return token[:-2]
+        if len(token) > 3 and token.endswith("s") and not token.endswith("ss"):
+            return token[:-1]
+        return token
+
     return {
-        t for t in re.findall(r"[a-z]{5,}", text.lower())
+        normalize_token(t) for t in re.findall(r"[a-z]{5,}", text.lower())
         if t not in STOP_WORDS
     }
+
+
+def extract_top_study_points(results_df: pd.DataFrame, search_query: str, top_n: int = 10):
+    text_blob = " ".join(results_df["text_content"].fillna("").astype(str).head(120).tolist())
+    raw_sentences = re.split(r"(?<=[.!?])\s+|\n+", text_blob)
+
+    cleaned = []
+    for sent in raw_sentences:
+        sent = re.sub(r"\s+", " ", sent).strip(" -•\t")
+        if len(sent) < 30:
+            continue
+        if any(noise in sent for noise in ["copyright", "isbn", "vetbooks"]):
+            continue
+        cleaned.append(sent)
+
+    def score(sentence: str):
+        low = sentence.lower()
+        query_hits = low.count(search_query.lower()) * 3
+        bio_hits = sum(
+            low.count(k) for k in [
+                "enzyme", "pathway", "metabolism", "reaction", "regulation",
+                "energy", "cell", "protein", "gene", "substrate",
+            ]
+        )
+        length_bonus = 1 if 60 <= len(sentence) <= 220 else 0
+        return query_hits + bio_hits + length_bonus
+
+    ranked = sorted(cleaned, key=score, reverse=True)
+    seen = set()
+    points = []
+    for sentence in ranked:
+        canonical = sentence.lower()
+        if canonical in seen:
+            continue
+        seen.add(canonical)
+        points.append(sentence)
+        if len(points) == top_n:
+            break
+    return points
 
 
 def semantic_bridge_summary(textbook_text: str, article_titles: list[str], query: str):
@@ -205,10 +274,11 @@ if df is not None and query:
     if not results.empty:
         st.sidebar.success(f"Found in {len(results)} pages")
 
-        tab1, tab2, tab3 = st.tabs([
+        tab1, tab2, tab3, tab4 = st.tabs([
             "📖 Textbook Context",
             "🧠 Discovery Lab",
             "📚 Literature",
+            "🎯 10 Points",
         ])
 
         with tab1:
@@ -304,10 +374,17 @@ if df is not None and query:
                         cols = st.columns(len(symbols))
                         for j, sym in enumerate(symbols):
                             with cols[j]:
-                                st.link_button(
-                                    f"Gene: {sym}",
-                                    f"https://www.ncbi.nlm.nih.gov/gene/?term={sym}",
-                                )
+                                gene_col, prot_col = st.columns(2)
+                                with gene_col:
+                                    st.link_button(
+                                        f"NCBI {sym}",
+                                        f"https://www.ncbi.nlm.nih.gov/gene/?term={sym}",
+                                    )
+                                with prot_col:
+                                    st.link_button(
+                                        f"UniProt {sym}",
+                                        f"https://www.uniprot.org/uniprotkb?query={quote_plus(sym)}",
+                                    )
 
                     if "Reading List Builder" in feature_flags:
                         include = st.checkbox("Add to reading list", key=f"reading_list_{i}_{pmid}")
@@ -329,5 +406,23 @@ if df is not None and query:
                             st.caption("Shared key terms: " + ", ".join(shared_terms))
             elif fetch:
                 st.warning("No articles found.")
+
+        with tab4:
+            st.subheader(f"10 Key Points for '{query.capitalize()}'")
+            study_points = extract_top_study_points(results, query, top_n=10)
+
+            if not study_points:
+                st.info("Not enough sentence-level textbook context found for this query yet.")
+            else:
+                for idx, point in enumerate(study_points, start=1):
+                    st.markdown(f"**{idx}.** {point}")
+
+                st.caption("Generated from indexed textbook content; use as quick revision notes.")
+                st.download_button(
+                    label="Download 10 Points (.txt)",
+                    data="\n".join([f"{i+1}. {p}" for i, p in enumerate(study_points)]),
+                    file_name=f"{query.replace(' ', '_')}_10_points.txt",
+                    mime="text/plain",
+                )
     else:
         st.warning(f"No matches found for '{query}'.")

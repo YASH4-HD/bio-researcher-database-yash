@@ -12,3 +12,4 @@ faiss-cpu
 biopython
 boto3
 groq
+google-generativeai>=0.7.2

@@ -1287,20 +1287,99 @@ if df is not None and query:
 
         with tab10:
             st.subheader("📘 CSIR-NET / GATE Planner")
-            st.caption("Quick preparation tracker for life-science aspirants.")
-            col_a, col_b = st.columns(2)
-            with col_a:
-                st.markdown("#### CSIR-NET Focus")
-                st.progress(0.62, text="Syllabus coverage: 62%")
-                st.checkbox("Revise Biochemistry fundamentals", key="csir_rev_1")
-                st.checkbox("Practice 50 MCQs", key="csir_rev_2")
-                st.checkbox("Mock test + analysis", key="csir_rev_3")
-            with col_b:
-                st.markdown("#### GATE BT Focus")
-                st.progress(0.48, text="Syllabus coverage: 48%")
-                st.checkbox("Genetics + Molecular Biology", key="gate_rev_1")
-                st.checkbox("Process calculations", key="gate_rev_2")
-                st.checkbox("Previous year questions", key="gate_rev_3")
+            with tabs[1]:
+    if knowledge_df.empty:
+        st.warning("⚠️ Knowledge base is empty. Please check your CSV file.")
+    else:
+                                                                                                # 1. TOP PROGRESS BAR
+        progress_value = (st.session_state.page_index + 1) / len(knowledge_df)
+        st.progress(progress_value)
+
+        # 2. SIMPLE TOOLBAR (Using standard columns, no complex CSS)
+        # The [0.5, 0.8, 0.5, 4] ratio keeps everything small and to the left
+        c1, c2, c3, c4 = st.columns([0.6, 0.8, 0.6, 4])
+        
+        with c1:
+            # Standard button - works every time
+            if st.button("⬅ PREV", use_container_width=True, disabled=st.session_state.page_index == 0):
+                st.session_state.page_index = max(0, st.session_state.page_index - 1)
+                st.rerun()
+        
+        with c2:
+            # Use a simple st.info or st.code for a boxed look without complex CSS
+            current_pg = st.session_state.page_index + 1
+            total_pg = len(knowledge_df)
+            st.markdown(f"""
+                <div style="border: 1px solid #ddd; border-radius: 5px; padding: 2px; text-align: center; background-color: #f9f9f9; line-height: 1.2;">
+                    <p style="margin: 0; font-size: 0.7rem; color: gray;">PAGE</p>
+                    <p style="margin: 0; font-weight: bold; font-size: 1rem;">{current_pg} / {total_pg}</p>
+                </div>
+            """, unsafe_allow_html=True)
+        
+        with c3:
+            if st.button("NEXT ➡", use_container_width=True, disabled=st.session_state.page_index == len(knowledge_df) - 1):
+                st.session_state.page_index = min(len(knowledge_df) - 1, st.session_state.page_index + 1)
+                st.rerun()
+
+        st.divider()
+
+
+
+
+
+        
+        # Define current row and save to session state
+        row = knowledge_df.iloc[st.session_state.page_index]
+        st.session_state['selected_row'] = row
+        
+        # Layout: Text on Left, Diagram Spoiler on Right
+        left, right = st.columns([2, 1])
+        
+    with left:
+        st.header(row.get("Topic", "Untitled"))
+        
+        # --- NEW: AUTO-TAG GENERATOR ---
+        # This logic simulates NLP entity extraction
+        bio_keywords = ["DNA", "RNA", "Protein", "CRISPR", "Gene", "Cell", "Enzyme", "Mutation", "Pathway", "Genomics"]
+        text_content = str(row.get("Explanation", "")) + " " + str(row.get("Detailed_Explanation", ""))
+        
+        # Find which keywords are in the text
+        found_tags = [tag for tag in bio_keywords if tag.lower() in text_content.lower()]
+        
+        if found_tags:
+            tag_html = ""
+            for t in found_tags:
+                tag_html += f'<span style="background-color:#e1f5fe; color:#01579b; padding:4px 10px; border-radius:15px; margin-right:5px; font-size:0.8rem; font-weight:bold; border:1px solid #01579b;">🧬 {t}</span>'
+            st.markdown(tag_html, unsafe_allow_html=True)
+            st.write("") # Spacer
+        
+        # --- END TAGS ---
+    
+        st.write(row.get("Explanation", "No explanation available."))
+        
+        with st.expander("📘 Detailed Analysis & Mechanism"):
+            st.write(row.get("Detailed_Explanation", "No extra details available."))
+        if st.button("Add to Research Report", icon="➕", use_container_width=False):
+                if 'report_list' not in st.session_state:
+                    st.session_state['report_list'] = []
+                
+                # Check if already added
+                if row['Topic'] not in [item['Topic'] for item in st.session_state['report_list']]:
+                    st.session_state['report_list'].append({
+                        "Topic": row['Topic'],
+                        "Notes": row['Explanation']
+                    })
+                    st.toast(f"Added {row['Topic']} to report!", icon="✅")
+                else:
+                    st.warning("Topic already in report.")
+        with right:
+            # --- DIAGRAM SPOILER ---
+            with st.expander("🖼️ View Topic Diagram", expanded=False):
+                img_path = str(row.get("Image", ""))
+                if img_path and os.path.exists(img_path):
+                    st.image(img_path, use_container_width=True, caption=f"Visual: {row.get('Topic')}")
+                else:
+                    st.info("No diagram available.")
 
         with tab11:
             st.subheader("🧪 Experimental Zone")

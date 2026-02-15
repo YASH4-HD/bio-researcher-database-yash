@@ -689,11 +689,23 @@ if df is not None and query:
             concepts_df = sanitize_concept_df(compute_concept_connections(results))
             if "Visual Knowledge Graph" in feature_flags and not concepts_df.empty:
                 st.markdown("#### 🕸️ Visual Knowledge Graph")
-                dot = "graph G {\nlayout=neato; overlap=false; splines=true;\n"
-                dot += f'"{query}" [shape=box, style="filled", fillcolor="#d1ecff", color="#1f77b4", penwidth=2];\n'
-                for _, row in concepts_df.head(10).iterrows():
-                    dot += f'"{row["term_a"]}" -- "{row["term_b"]}" [label="{int(row["co_occurrences"])}", color="#7aa6d8"];\n'
+                # Increase head to 20 to show more bubbles
+                top_concepts = concepts_df.head(20) 
+                dot = "graph G {\nlayout=neato; overlap=false; splines=true; node [fontname='Helvetica', fontsize=12];\n"
+                dot += f'"{query}" [shape=doublecircle, style="filled", fillcolor="#FFD700", color="#DAA520", penwidth=3];\n'
+                # Logic to color 'protein' or 'enzyme' differently
+                for _, row in top_concepts.iterrows():
+                    a, b = row["term_a"], row["term_b"]
+                    # Highlight important nodes
+                    if a in ["protein", "enzyme", "gene"]:
+                        dot += f'"{a}" [style=filled, fillcolor="#C1E1C1"];\n'
+                    if b in ["protein", "enzyme", "gene"]:
+                        dot += f'"{b}" [style=filled, fillcolor="#C1E1C1"];\n'
+                    dot += f'"{a}" -- "{b}" [label="{int(row["co_occurrences"])}", color="#7aa6d8", penwidth={min(row["co_occurrences"]/2, 5)}];\n'
                 dot += "}"
+                
+                    
+               
                 st.graphviz_chart(dot)
                 st.caption("Edge weight = term co-occurrence frequency within indexed textbook content.")
 

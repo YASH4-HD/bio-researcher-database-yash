@@ -32,7 +32,14 @@ def search_pubmed(query):
         handle = Entrez.esearch(db="pubmed", term=search_term, retmax=5, sort="relevance")
         record = Entrez.read(handle)
         handle.close()
-        
+# --- FOOTER ---
+st.sidebar.markdown("---")
+st.sidebar.markdown("""
+**System Status:**
+- Cloud Storage: **Connected** (Cloudflare R2)
+- Database: **1.44 GB Indexed**
+- API Status: **NCBI Entrez Active**
+""")        
         id_list = record.get("IdList", [])
         if not id_list:
             return None

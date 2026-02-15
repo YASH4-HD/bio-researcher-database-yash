@@ -1275,8 +1275,7 @@ if df is not None and query:
                             st.error(f"Analysis error: {e}")
                     elif seq_type == "DNA/RNA":
                         from Bio.SeqUtils import gc_fraction
-                        st.metric("GC Content", f"{gc_fraction(cleaned)*100:.2f}%")
-
+                        st.metric("Melting Temp (Tm)", f"{tm_value:.2f} °C")
             with bio_sub2:
                 st.markdown("#### 💎 3D Molecular Visualization")
                 

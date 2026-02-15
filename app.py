@@ -661,6 +661,25 @@ if load_warning:
 
 # --- 5. SEARCH INPUT ---
 render_sidebar_status()
+query = ""
+pi_name = ""
+feature_flags = []
+selected_page = None
+with st.sidebar.expander("🔬 Search Workspace", expanded=True):
+    query = st.text_input("Enter Biological Term", value="Glycolysis").lower().strip()
+    lab_mode = st.toggle("Lab-Specific Mode")
+    pi_name = st.text_input("PI / Author name", value="") if lab_mode else ""
+    feature_flags = st.multiselect(
+        "Explore Unique Feature Additions",
+        ["Semantic Query Expansion", "Semantic Bridge", "Visual Knowledge Graph", "Reading List Builder", "Metabolic Map Link"],
+        default=["Semantic Query Expansion", "Semantic Bridge", "Visual Knowledge Graph", "Metabolic Map Link"],
+    )
+
+    if df is not None and query:
+        sidebar_results = df[df["text_content"].str.contains(query, na=False)] if "text_content" in df.columns else df
+        if not sidebar_results.empty:
+            st.success(f"Found in {len(sidebar_results)} pages")
+            selected_page = st.selectbox("Select Page to View", sidebar_results["page"].tolist())
 query = st.sidebar.text_input("Enter Biological Term", value="Glycolysis").lower().strip()
 lab_mode = st.sidebar.toggle("Lab-Specific Mode")
 pi_name = st.sidebar.text_input("PI / Author name", value="") if lab_mode else ""

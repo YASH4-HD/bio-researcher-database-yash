@@ -1334,33 +1334,43 @@ if df is not None and query:
 
                 st.divider()
 
-                kb_row = kb_df.iloc[st.session_state.kb_idx]
-                col_left, col_right = st.columns([2, 1])
-                
-                with col_left:
-                    # TITLE
-                    st.header(kb_row.get("Topic", "Untitled Topic"))
-                    
-                    # --- INTERACTIVE TAG GENERATOR (As seen in Image 1) ---
-                    bio_keywords = ["DNA", "RNA", "Protein", "Enzyme", "CRISPR", "Metabolism", "Pathway", "Cell"]
-                    text_for_tags = str(kb_row.get("Explanation", "")) + " " + str(kb_row.get("Topic", ""))
-                    found_tags = [tag for tag in bio_keywords if tag.lower() in text_for_tags.lower()]
-                    
-                    if found_tags:
-                        tag_html = ""
-                        for t in found_tags:
-                            tag_html += f'<span style="background-color:#e1f5fe; color:#01579b; padding:4px 12px; border-radius:15px; margin-right:8px; font-size:0.75rem; font-weight:bold; border:1px solid #b3e5fc;">🧬 {t}</span>'
-                        st.markdown(tag_html, unsafe_allow_html=True)
-                        st.write("") # Spacer
+kb_row = kb_df.iloc[st.session_state.kb_idx]
+col_left, col_right = st.columns([2, 1])
 
-                    # EXPLANATION
-                    st.write(kb_row.get("Explanation", "No explanation provided."))
-                    
-                    # DETAILED ANALYSIS EXPANDER (Matches Image 1 style)
-                    with st.expander("📘 Detailed Analysis & Mechanism", expanded=False):
-                        # This shows the 'Ten_Points' or 'Detailed_Explanation' column
-                        points = kb_row.get("Ten_Points", "No extra details available.")
-                        st.write(points)
+with col_left:
+    # TITLE: Use .strip() and check for empty strings
+    raw_topic = str(kb_row.get("Topic", "Untitled Topic")).strip()
+    topic_display = raw_topic if raw_topic.lower() != "nan" and raw_topic != "" else "Untitled Topic"
+    st.header(topic_display)
+    
+    # TAGS
+    bio_keywords = ["DNA", "RNA", "Protein", "Enzyme", "CRISPR", "Metabolism", "Pathway", "Cell"]
+    # Ensure we are looking at a string
+    expl_str = str(kb_row.get("Explanation", ""))
+    text_for_tags = expl_str + " " + topic_display
+    found_tags = [tag for tag in bio_keywords if tag.lower() in text_for_tags.lower()]
+    
+    if found_tags:
+        tag_html = "".join([f'<span style="background-color:#e1f5fe; color:#01579b; padding:4px 12px; border-radius:15px; margin-right:8px; font-size:0.75rem; font-weight:bold; border:1px solid #b3e5fc;">🧬 {t}</span>' for t in found_tags])
+        st.markdown(tag_html, unsafe_allow_html=True)
+        st.write("") 
+
+    # EXPLANATION
+    raw_expl = str(kb_row.get("Explanation", "No explanation provided.")).strip()
+    if raw_expl.lower() == "nan" or not raw_expl:
+        st.write("No explanation provided.")
+    else:
+        st.write(raw_expl)
+    
+    # DETAILED ANALYSIS
+    with st.expander("📘 Detailed Analysis & Mechanism", expanded=False):
+        raw_points = str(kb_row.get("Ten_Points", "No extra details available.")).strip()
+        if raw_points.lower() == "nan" or not raw_points:
+            st.write("No extra details available.")
+        else:
+            # Handle the line breaks from your Excel Alt+Enter
+            st.write(raw_points.replace("_x000D_", "\n"))
+
                     
                     # Inside Tab 10...
                     if st.button("Add to Research Report", icon="➕", key="kb_report_btn"):

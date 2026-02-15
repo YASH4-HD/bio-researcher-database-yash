@@ -146,18 +146,34 @@ def render_sidebar_status():
     today = date.today()
     june_exam = date(today.year, 6, 1)
     gate_exam = date(2027, 2, 1)
+
     st.sidebar.markdown("### 🛡️ Bio-Verify 2026")
     st.sidebar.write(f"📅 {today.strftime('%d %b %Y')}")
+    st.sidebar.divider()
+
+    st.sidebar.markdown("### 🧬 Yashwant Nama")
+    st.sidebar.info("Developer & Researcher\n\n**Bio-Informatics & Genetics**")
+    c1, c2 = st.sidebar.columns(2)
+    with c1:
+        st.caption("🧬 Genomics")
+    with c2:
+        st.caption("🕸️ Networks")
+
     st.sidebar.divider()
     st.sidebar.markdown("### 📆 Exam Countdown")
     st.sidebar.info(f"**CSIR NET JUNE:** {(june_exam - today).days} days left")
     st.sidebar.info(f"**GATE 2027:** {(gate_exam - today).days} days left")
+
     st.sidebar.divider()
     st.sidebar.success("✅ Live API Connection: Active")
     st.sidebar.info("Verified Data Sources: NCBI, Wikipedia, Google")
+
     st.sidebar.divider()
     st.sidebar.markdown("### 💡 Research Tip")
     st.sidebar.info("Restriction enzymes work best at specific pH and temperature buffers.")
+
+    st.sidebar.markdown("### 🔎 Suggested Searches")
+    st.sidebar.caption("PCR • CRISPR • Glycolysis • DNA Repair • T-cell Metabolism")
 
 def render_bar_figure(df: pd.DataFrame, x_col: str, y_col: str, title: str):
     try:
@@ -786,7 +802,7 @@ if df is not None and query:
                         st.info("No direct intermediate nodes detected from current concept graph.")
         with tab6:
             st.subheader("Bio-Analyst Assistant")
-            st.caption("Use API key in-session only. No key is stored by this app.")
+            st.caption("Use API key in-session only. No key is stored by this app. For deployment, keep keys in Streamlit secrets.")
 
             provider = st.selectbox("Provider", ["Gemini", "Groq", "OpenAI", "HuggingFace"])
             api_key = st.text_input("Enter your API key", type="password", help="Use a Groq/OpenAI/HuggingFace key. This field is masked and only kept in-session.")
@@ -898,36 +914,79 @@ if df is not None and query:
 
         with tab7:
             st.subheader("🌐 Global Bio-Intelligence")
-            st.caption("Unified discovery from Wikipedia + NCBI PubMed.")
+            st.caption("Search results matched for accuracy (Wikipedia + PubMed + ResearchGate shortcut).")
 
             st.markdown("#### 📚 Quick Wikipedia Summary")
-            wiki_topic = st.text_input("Search topic for Wikipedia", value=query, key="wiki_topic")
+            wiki_topic = st.text_input("Search for any topic (e.g., DNA, MITOSIS, CRISPR)", value=query, key="wiki_topic")
             if st.button("Fetch Wikipedia Summary"):
                 st.session_state["wiki_summary"] = fetch_wikipedia_summary(wiki_topic)
-            if st.session_state.get("wiki_summary"):
-                st.write(st.session_state["wiki_summary"])
+
+            wiki_text = st.session_state.get("wiki_summary", "")
+            if wiki_text:
+                with st.container(border=True):
+                    st.markdown(f"### 📚 Research Snapshot: {wiki_topic.title()}")
+                    st.write(wiki_text)
+                    col_meta1, col_meta2, col_meta3 = st.columns(3)
+                    with col_meta1:
+                        st.info("🔗 Source: Wikipedia")
+                    with col_meta2:
+                        st.info(f"📊 Complexity: {len(wiki_text.split())} words")
+                    with col_meta3:
+                        st.info("🗓️ Last Updated: Today")
+                    col_w1, col_w2 = st.columns(2)
+                    with col_w1:
+                        st.link_button("📖 Read Full Article", f"https://en.wikipedia.org/wiki/{quote_plus(wiki_topic)}")
+                    with col_w2:
+                        st.link_button("🔎 Search ResearchGate", f"https://www.google.com/search?q={quote_plus(wiki_topic + ' biology research gate')}")
 
             st.divider()
             st.markdown("#### 🔬 Technical Research (NCBI)")
-            pubmed_topic = st.text_input("Enter PubMed keyword", value=query, key="global_pubmed_topic")
+            db = st.selectbox("Select Database", ["pubmed"], key="global_db")
+            pubmed_topic = st.text_input("Enter pubmed keyword for technical data", value=query, key="global_pubmed_topic")
             if st.button("Search NCBI"):
                 st.session_state["global_pubmed_docs"] = search_pubmed(pubmed_topic) or []
-            for doc in st.session_state.get("global_pubmed_docs", [])[:5]:
-                title = doc.get("Title", "No Title")
-                pmid = doc.get("Id", "")
-                st.markdown(f"- **{title}**")
-                if pmid:
-                    st.link_button("Open PubMed", f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/")
+
+            docs_g = st.session_state.get("global_pubmed_docs", [])
+            if docs_g:
+                for i, doc in enumerate(docs_g[:5], start=1):
+                    title = doc.get("Title", "No Title")
+                    src = doc.get("Source", "Journal")
+                    date_pub = doc.get("PubDate", "N/A")
+                    pmid = doc.get("Id", "")
+                    with st.expander(f"{i}. {title}"):
+                        st.write(f"📖 *{src}* | 📅 {date_pub}")
+                        if pmid:
+                            st.link_button("Open PubMed", f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/")
 
         with tab8:
-            st.subheader("🇮🇳 Hindi Explain")
+            st.subheader("🇮🇳 IN Hindi Explain")
             st.caption("Paste English biology text and convert to Hindi explanation.")
-            hindi_input = st.text_area("English text", value="", height=150, key="hindi_input")
+
+            ex1, ex2 = st.columns(2)
+            with ex1:
+                if st.button("Use Glycolysis Example"):
+                    st.session_state["hindi_input"] = (
+                        "Glycolysis is a metabolic pathway that converts glucose into pyruvate and releases energy as ATP."
+                    )
+            with ex2:
+                if st.button("Use Restriction Enzyme Example"):
+                    st.session_state["hindi_input"] = "Enzymes that cut DNA at specific palindromic sequences."
+
+            hindi_input = st.text_area("English text", value=st.session_state.get("hindi_input", ""), height=150, key="hindi_input")
             if st.button("Translate to Hindi"):
                 st.session_state["hindi_output"] = translate_to_hindi(hindi_input)
-            if st.session_state.get("hindi_output"):
-                st.markdown("### Hindi Output")
-                st.write(st.session_state["hindi_output"])
+
+            out_hi = st.session_state.get("hindi_output", "")
+            if out_hi:
+                with st.container(border=True):
+                    st.markdown("### Hindi Output")
+                    st.info(out_hi)
+                    st.download_button(
+                        "Download Hindi Output (.txt)",
+                        data=out_hi,
+                        file_name="hindi_explanation.txt",
+                        mime="text/plain",
+                    )
 
 
     else:

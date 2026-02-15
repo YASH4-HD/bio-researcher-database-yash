@@ -1536,9 +1536,9 @@ if df is not None and query:
                         st.error("❌ GC content outside 40-60% range.")
 
         
-            else:
-                # This else belongs to "if not results.empty:"
-                st.warning(f"No matches found for '{query}'.")
+                    else:
+                        # This else belongs to "if not results.empty:"
+                        st.warning(f"No matches found for '{query}'.")
         
             
             

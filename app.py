@@ -700,19 +700,23 @@ def search_pubmed(search_query, author_filter=""):
 
 
 def clean_sequence(raw_seq: str) -> str:
-    # Remove the FASTA header line (starts with >) if it exists
+    """Removes FASTA headers and whitespace."""
     lines = raw_seq.strip().splitlines()
     if lines and lines[0].startswith(">"):
         actual_sequence = "".join(lines[1:])
     else:
         actual_sequence = "".join(lines)
-    
-    # Remove all spaces, numbers, and newlines
     return "".join(actual_sequence.upper().split())
 
 def infer_sequence_type(seq: str) -> str:
-    if not seq:
-        return "Unknown"
+    """Detects if DNA or Protein."""
+    if not seq: return "Unknown"
+    dna_chars = set("ACGTUN")
+    prot_chars = set("ABCDEFGHIKLMNPQRSTVWXYZ")
+    chars = set(seq)
+    if chars.issubset(dna_chars): return "DNA/RNA"
+    if chars.issubset(prot_chars): return "Protein"
+    return "Unknown"
     
     dna_chars = set("ACGTUN")
     # Amino acids including common ones

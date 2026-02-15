@@ -1596,7 +1596,7 @@ with st.sidebar:
     # 6. Research Tip (Moved outside the else so it always shows)
     st.sidebar.markdown("### 💡 Research Tip")
     st.sidebar.info("Focus on molecular interactions and regulatory nodes relevant to CSIR-NET Part C.")
-        # --- SIDEBAR RESEARCH LOG ---
+# --- SIDEBAR RESEARCH LOG ---
         with st.sidebar:
             st.divider()
             st.subheader("📝 Research Summary Log")

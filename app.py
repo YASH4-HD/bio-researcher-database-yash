@@ -14,6 +14,8 @@ from urllib.parse import quote_plus
 import pandas as pd
 import streamlit as st
 from Bio import Entrez
+from Bio.SeqUtils import gc_fraction, molecular_weight
+from Bio.SeqUtils.ProtParam import ProteinAnalysis
 
 HAS_MATPLOTLIB = importlib.util.find_spec("matplotlib") is not None
 if HAS_MATPLOTLIB:
@@ -162,6 +164,7 @@ def render_sidebar_status():
     st.sidebar.markdown("### 🔎 Suggested Searches")
     st.sidebar.caption("PCR • CRISPR • Glycolysis • DNA Repair • T-cell Metabolism")
     st.sidebar.divider()
+    st.sidebar.markdown("### 🔬 Search Workspace")
 
     st.sidebar.markdown("### 🧬 Yashwant Nama")
     st.sidebar.info("Developer & Researcher\n\n**Bio-Informatics & Genetics**")
@@ -599,6 +602,34 @@ def search_pubmed(search_query, author_filter=""):
         return None
 
 
+def clean_sequence(raw_seq: str) -> str:
+    return "".join(raw_seq.upper().split())
+
+
+def infer_sequence_type(seq: str) -> str:
+    dna_chars = set("ACGTUN")
+    prot_chars = set("ABCDEFGHIKLMNPQRSTVWXYZ")
+    chars = set(seq)
+    if chars and chars.issubset(dna_chars):
+        return "DNA/RNA"
+    if chars and chars.issubset(prot_chars):
+        return "Protein"
+    return "Unknown"
+
+
+def wallace_tm(primer: str) -> int:
+    seq = primer.upper()
+    at = seq.count("A") + seq.count("T")
+    gc = seq.count("G") + seq.count("C")
+    return 2 * at + 4 * gc
+
+
+def gc_percent(seq: str) -> float:
+    if not seq:
+        return 0.0
+    return gc_fraction(seq) * 100
+
+
 # --- 4. UI HEADER ---
 df, load_warning = load_index()
 st.title("🧬 BioVisual Search Engine")
@@ -623,7 +654,7 @@ if df is not None and query:
 
     if not results.empty:
         st.sidebar.success(f"Found in {len(results)} pages")
-        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs(["📖 Textbook Context", "🧠 Discovery Lab", "📚 Literature", "🎯 10 Points", "⚖️ Comparison", "🤖 AI Analyst", "🌐 Global Intelligence", "🇮🇳 Hindi Explain", "📘 CSIR-NET/GATE", "🧪 Experimental Zone"])
+        tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs(["📖 Textbook Context", "🧠 Discovery Lab", "📚 Literature", "🎯 10 Points", "⚖️ Comparison", "🤖 AI Analyst", "🌐 Global Intelligence", "🇮🇳 Hindi Explain", "🧬 Bioinformatics", "📘 CSIR-NET/GATE", "🧪 Experimental Zone"])
 
         with tab1:
             selected_page = st.sidebar.selectbox("Select Page to View", results["page"].tolist())
@@ -1010,6 +1041,64 @@ if df is not None and query:
                     )
 
         with tab9:
+            st.subheader("🧬 Bioinformatics Toolkit")
+
+            with st.expander("1) Sequence Analysis", expanded=True):
+                seq_input = st.text_area("Paste DNA/RNA or Protein sequence", value="", height=120, key="bio_seq_input")
+                if st.button("Analyze Sequence", key="bio_seq_analyze"):
+                    seq = clean_sequence(seq_input)
+                    seq_type = infer_sequence_type(seq)
+                    if not seq:
+                        st.warning("Please paste a valid sequence first.")
+                    elif seq_type == "Unknown":
+                        st.warning("Sequence contains unsupported characters. Use standard IUPAC DNA/RNA or protein letters.")
+                    else:
+                        st.success(f"Detected sequence type: {seq_type} | Length: {len(seq)}")
+                        if seq_type == "DNA/RNA":
+                            gc = gc_percent(seq.replace("U", "T"))
+                            mw = molecular_weight(seq.replace("U", "T"), seq_type="DNA")
+                            st.write(f"GC Content: **{gc:.2f}%**")
+                            st.write(f"Molecular Weight (DNA estimate): **{mw:.2f} Da**")
+                            st.info("Isoelectric point (pI) is typically used for proteins, not nucleic acids.")
+                        else:
+                            protein = ProteinAnalysis(seq)
+                            mw = protein.molecular_weight()
+                            pi = protein.isoelectric_point()
+                            st.write(f"Molecular Weight: **{mw:.2f} Da**")
+                            st.write(f"Isoelectric Point (pI): **{pi:.2f}**")
+
+            with st.expander("2) Primer Designer", expanded=False):
+                primer_target = st.text_area("Target DNA sequence", value="", height=120, key="primer_target")
+                primer_len = st.slider("Primer length", min_value=18, max_value=30, value=20, key="primer_len")
+                if st.button("Design Primers", key="primer_design"):
+                    target = clean_sequence(primer_target).replace("U", "T")
+                    if len(target) < primer_len * 2:
+                        st.warning("Target sequence is too short for the selected primer length.")
+                    elif infer_sequence_type(target) != "DNA/RNA":
+                        st.warning("Primer design requires a DNA-like sequence (A/C/G/T/U).")
+                    else:
+                        forward = target[:primer_len]
+                        reverse_template = target[-primer_len:]
+                        comp = str.maketrans("ACGT", "TGCA")
+                        reverse = reverse_template.translate(comp)[::-1]
+                        f_tm, r_tm = wallace_tm(forward), wallace_tm(reverse)
+                        f_gc, r_gc = gc_percent(forward), gc_percent(reverse)
+
+                        st.markdown("**Forward Primer**")
+                        st.code(forward)
+                        st.caption(f"Tm: {f_tm}°C | GC: {f_gc:.1f}% | 3' GC clamp: {'Yes' if forward[-1] in {'G', 'C'} else 'No'}")
+
+                        st.markdown("**Reverse Primer**")
+                        st.code(reverse)
+                        st.caption(f"Tm: {r_tm}°C | GC: {r_gc:.1f}% | 3' GC clamp: {'Yes' if reverse[-1] in {'G', 'C'} else 'No'}")
+
+            with st.expander("3) PDB 3D Structure Viewer", expanded=False):
+                pdb_id = st.text_input("PDB ID (e.g., 1TUP, 6M0J)", value="1TUP", key="pdb_id").strip().upper()
+                if pdb_id:
+                    st.markdown(f"Open interactive structure page: https://www.rcsb.org/structure/{pdb_id}")
+                    st.components.v1.iframe(f"https://www.rcsb.org/3d-view/{pdb_id}", height=520, scrolling=False)
+
+        with tab10:
             st.subheader("📘 CSIR-NET / GATE Planner")
             st.caption("Quick preparation tracker for life-science aspirants.")
             col_a, col_b = st.columns(2)
@@ -1026,7 +1115,7 @@ if df is not None and query:
                 st.checkbox("Process calculations", key="gate_rev_2")
                 st.checkbox("Previous year questions", key="gate_rev_3")
 
-        with tab10:
+        with tab11:
             st.subheader("🧪 Experimental Zone")
             st.caption("Prototype sandbox for rapid hypothesis testing.")
             molecule = st.text_input("Target gene/protein/metabolite", value=query, key="exp_target")

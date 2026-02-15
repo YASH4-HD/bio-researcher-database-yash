@@ -1622,12 +1622,12 @@ with st.sidebar:
         """
 
         
-        # The Download Button
-        st.download_button(
-        label="Download .md File",
-        data=summary_text,
-        file_name="BioVisual_Research_Report.md",
-        mime="text/markdown"
-        )
+    # The Download Button
+    st.download_button(
+    label="Download .md File",
+    data=summary_text,
+    file_name="BioVisual_Research_Report.md",
+    mime="text/markdown"
+    )
 
 

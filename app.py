@@ -1606,7 +1606,7 @@ with st.sidebar:
         gc_display = f"{gc_content:.2f}" if ('gc_content' in locals() and isinstance(gc_content, (int, float))) else "N/A"
         
         # Creating the markdown content
-                    summary_text = f"""# 🧬 BioVisual Research Report
+        summary_text = f"""# 🧬 BioVisual Research Report
 **Generated on:** {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
 ## 🔍 Target Analysis: {query if 'query' in locals() else 'N/A'}

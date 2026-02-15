@@ -1597,7 +1597,7 @@ with st.sidebar:
     st.sidebar.markdown("### 💡 Research Tip")
     st.sidebar.info("Focus on molecular interactions and regulatory nodes relevant to CSIR-NET Part C.")
     # --- SIDEBAR RESEARCH LOG ---
-       with st.sidebar:
+    with st.sidebar:
         st.divider()
         st.subheader("📝 Export Research")
 

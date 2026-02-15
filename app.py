@@ -1261,8 +1261,8 @@ if df is not None and query:
 
                 st.components.v1.iframe(target_url, height=1000, scrolling=True)
                 st.caption("Note: Some data-heavy pages may take a few seconds to render inside the frame.")
-            else:
-                st.warning(
+                else:
+                    st.warning(
                     f"{portal_choice} often blocks iframe embedding (security headers). "
                     "Use 'Open in New Tab' for reliable access."
                 )

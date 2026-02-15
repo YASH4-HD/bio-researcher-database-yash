@@ -1287,7 +1287,7 @@ if df is not None and query:
 
         with tab10:
             st.subheader("📘 CSIR-NET / GATE Planner")
-            with tabs[1]:
+            
     if knowledge_df.empty:
         st.warning("⚠️ Knowledge base is empty. Please check your CSV file.")
     else:

@@ -1254,8 +1254,8 @@ if df is not None and query:
                     st.link_button(f"🚀 Open {portal_choice} in New Tab", target_url, use_container_width=True)
                     
                     embeddable_portals = {"RCSB PDB", "UniProt"}
-                    if portal_choice in embeddable_portals:
-                st.components.v1.iframe(target_url, height=800, scrolling=True)
+                if portal_choice in embeddable_portals:
+                    st.components.v1.iframe(target_url, height=800, scrolling=True)
                 else:
                     st.warning(f"{portal_choice} blocks embedding. Please use the 'Open in New Tab' button above.")
 

@@ -259,28 +259,23 @@ def render_bar_figure(df: pd.DataFrame, x_col: str, y_col: str, title: str):
 def load_knowledge_base():
     csv_path = Path("knowledge_base.csv")
     if not csv_path.exists():
-        st.error("File 'knowledge_base.csv' not found in the directory.")
         return pd.DataFrame()
     try:
-        # Load the CSV
         kb_df = pd.read_csv(csv_path)
-        
-        # Clean headers
         kb_df.columns = [c.strip() for c in kb_df.columns]
         
-        # FIX: Added .str before .lower() to fix your specific error
+        # Remove the dummy row where Topic == 'Topic'
         if "Topic" in kb_df.columns:
-            kb_df = kb_df[kb_df['Topic'].astype(str).str.lower() != 'topic']
+            kb_df = kb_df[kb_df['Topic'].astype(str).str.strip().lower() != 'topic']
         
-        # Select only needed columns
-        valid_cols = [c for c in ['Topic', 'Explanation', 'Ten_Points'] if c in kb_df.columns]
+        # Select all 4 relevant columns
+        valid_cols = [c for c in ['Topic', 'Theory', 'Explanation', 'Ten_Points'] if c in kb_df.columns]
         kb_df = kb_df[valid_cols]
         
-        # Drop empty rows and reset index
         kb_df = kb_df.dropna(subset=['Topic']).reset_index(drop=True)
         return kb_df
     except Exception as e:
-        st.error(f"Error loading Knowledge Base: {e}")
+        st.error(f"Error loading CSV: {e}")
         return pd.DataFrame()
 
 

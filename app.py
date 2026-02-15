@@ -259,30 +259,30 @@ def render_bar_figure(df: pd.DataFrame, x_col: str, y_col: str, title: str):
 def load_knowledge_base():
     csv_path = Path("knowledge_base.csv")
     if not csv_path.exists():
+        st.error("File 'knowledge_base.csv' not found in the directory.")
         return pd.DataFrame()
     try:
-        # 1. Load CSV
+        # Load the CSV
         kb_df = pd.read_csv(csv_path)
         
-        # 2. Clean headers (remove spaces)
+        # Clean headers
         kb_df.columns = [c.strip() for c in kb_df.columns]
         
-        # 3. CRITICAL: Remove the 'dummy' header row if it exists in the data
-        # If Row 1 in Excel is "Topic, Section...", this removes it from the data rows
-        kb_df = kb_df[kb_df['Topic'].astype(str).lower() != 'topic']
+        # FIX: Added .str before .lower() to fix your specific error
+        if "Topic" in kb_df.columns:
+            kb_df = kb_df[kb_df['Topic'].astype(str).str.lower() != 'topic']
         
-        # 4. Filter only the columns we actually use to avoid alignment shifts
-        expected_cols = ['Topic', 'Explanation', 'Ten_Points']
-        existing_cols = [c for c in expected_cols if c in kb_df.columns]
-        kb_df = kb_df[existing_cols]
+        # Select only needed columns
+        valid_cols = [c for c in ['Topic', 'Explanation', 'Ten_Points'] if c in kb_df.columns]
+        kb_df = kb_df[valid_cols]
         
-        # 5. Drop empty rows and reset index
+        # Drop empty rows and reset index
         kb_df = kb_df.dropna(subset=['Topic']).reset_index(drop=True)
-        
         return kb_df
     except Exception as e:
         st.error(f"Error loading Knowledge Base: {e}")
         return pd.DataFrame()
+
 
 kb_df = load_knowledge_base()
 
@@ -1349,42 +1349,54 @@ if df is not None and query:
 
                 st.divider()
 
-        kb_row = kb_df.iloc[st.session_state.kb_idx]
-        col_left, col_right = st.columns([2, 1])
+                # --- PASTE THIS STARTING AT LINE 1349 ---
+        st.divider()
 
+        # Fetch the current row from your CSV
+        kb_row = kb_df.iloc[st.session_state.kb_idx]
+        
+        col_left, col_right = st.columns([2, 1])
+        
         with col_left:
-            # TITLE: Use .strip() and check for empty strings
-            raw_topic = str(kb_row.get("Topic", "Untitled Topic")).strip()
-            topic_display = raw_topic if raw_topic.lower() != "nan" and raw_topic != "" else "Untitled Topic"
-            st.header(topic_display)
+            # 1. TOPIC TITLE
+            topic_name = str(kb_row.get("Topic", "Untitled Topic")).strip()
+            st.header(topic_name)
             
-            # TAGS
+            # 2. AUTOMATIC TAGS
             bio_keywords = ["DNA", "RNA", "Protein", "Enzyme", "CRISPR", "Metabolism", "Pathway", "Cell"]
-            # Ensure we are looking at a string
             expl_str = str(kb_row.get("Explanation", ""))
-            text_for_tags = expl_str + " " + topic_display
+            text_for_tags = expl_str + " " + topic_name
             found_tags = [tag for tag in bio_keywords if tag.lower() in text_for_tags.lower()]
             
             if found_tags:
                 tag_html = "".join([f'<span style="background-color:#e1f5fe; color:#01579b; padding:4px 12px; border-radius:15px; margin-right:8px; font-size:0.75rem; font-weight:bold; border:1px solid #b3e5fc;">🧬 {t}</span>' for t in found_tags])
                 st.markdown(tag_html, unsafe_allow_html=True)
-                st.write("") 
-        
-            # EXPLANATION
-            raw_expl = str(kb_row.get("Explanation", "No explanation provided.")).strip()
-            if raw_expl.lower() == "nan" or not raw_expl:
-                st.write("No explanation provided.")
-            else:
-                st.write(raw_expl)
+                st.write("") # Spacer
+
+            # 3. MAIN EXPLANATION
+            st.markdown("### 📖 Theory & Mechanism")
+            explanation = str(kb_row.get("Explanation", "No explanation provided."))
+            st.write(explanation)
             
-            # DETAILED ANALYSIS
-            with st.expander("📘 Detailed Analysis & Mechanism", expanded=False):
-                raw_points = str(kb_row.get("Ten_Points", "No extra details available.")).strip()
-                if raw_points.lower() == "nan" or not raw_points:
-                    st.write("No extra details available.")
-                else:
-                    # Handle the line breaks from your Excel Alt+Enter
-                    st.write(raw_points.replace("_x000D_", "\n"))
+            # 4. DETAILED 10-POINTS EXPANDER
+            with st.expander("📘 Detailed Analysis & Key Points", expanded=False):
+                points = str(kb_row.get("Ten_Points", "No extra details available."))
+                # Fixes the Excel line-break issue
+                st.write(points.replace("_x000D_", "\n").replace("[Alt+Enter]", "\n"))
+
+        with col_right:
+            # 5. DYNAMIC IMAGE FROM R2
+            with st.container(border=True):
+                st.markdown("**🖼️ Topic Diagram**")
+                # This uses the current row index + 1 to fetch 1.jpg, 2.jpg, etc.
+                img_number = st.session_state.kb_idx + 1
+                full_img_url = f"{KB_IMAGES_URL}/{img_number}.jpg"
+                
+                st.image(full_img_url, use_container_width=True, caption=f"Visual for: {topic_name}")
+                st.link_button("🔍 View Full Image", full_img_url, use_container_width=True)
+
+        # --- END OF ADDED CODE ---
+
 
     
         # Inside Tab 10...

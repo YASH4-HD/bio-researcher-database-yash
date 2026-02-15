@@ -18,6 +18,8 @@ from Bio.SeqUtils import gc_fraction, molecular_weight
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
 
 HAS_MATPLOTLIB = importlib.util.find_spec("matplotlib") is not None
+HAS_PLOTLY = importlib.util.find_spec("plotly") is not None
+HAS_NETWORKX = importlib.util.find_spec("networkx") is not None
 if HAS_MATPLOTLIB:
     import matplotlib.pyplot as plt
 else:

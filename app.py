@@ -1393,8 +1393,9 @@ if df is not None and query:
                     "Readouts: qPCR, western blot, and flux proxy (lactate/ATP).\n"
                     "Controls: non-targeting control + vehicle + baseline condition."
                 )
-                if st.session_state.get("exp_plan"):
-                st.success(st.session_state["exp_plan"])
+            if st.session_state.get("exp_plan"):
+                st.success(st.session_state["exp_plan"]) # <--- ADD INDENTATION HERE
+
 
         # --- END OF TABS ---
         

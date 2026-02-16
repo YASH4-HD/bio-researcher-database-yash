@@ -10,3 +10,12 @@ jobs:
     steps:
       - name: Ping Streamlit App
         run: curl -I https://bio-concepts-simplified-yash.streamlit.app/
+        run: curl -I https://bio-concepts-simplified-v2-yash.streamlit.app/
+        run: curl -I https://bio-researcher-database-yash.streamlit.app/
+        run: curl -I https://bio-tikz-simplifiedv2-yash.streamlit.app/
+        run: curl -I https://bio-tikz-studio-yash.streamlit.app/
+        run: curl -I https://cd40-immunosome-tool-yash.streamlit.app/
+        run: curl -I https://huntington-research-yash.streamlit.app/
+        run: curl -I https://huntington-research-app-backup-yash.streamlit.app/
+        run: curl -I https://immunopet-tracer-optimizer-yash.streamlit.app/
+        run: curl -I https://neurometabolic-validation-v2-yash.streamlit.app/

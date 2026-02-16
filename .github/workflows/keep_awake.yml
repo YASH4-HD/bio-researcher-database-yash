@@ -1,5 +1,3 @@
-name: Keep App Awake
-
 on:
   schedule:
     - cron: '0 */6 * * *'

@@ -14,7 +14,7 @@ jobs:
           curl -I https://bio-concepts-simplified-yash.streamlit.app/
           curl -I https://bio-concepts-simplified-v2-yash.streamlit.app/
           curl -I https://bio-researcher-database-yash.streamlit.app/
-          curl -I https://bio-tik-simplifiedv2-yash.streamlit.app/
+          curl -I https://bio-tikz-simplifiedv2-yash.streamlit.app/
           curl -I https://bio-tikz-studio-yash.streamlit.app/
           curl -I https://cd40-immunosome-tool-yash.streamlit.app/
           curl -I https://huntington-research-yash.streamlit.app/

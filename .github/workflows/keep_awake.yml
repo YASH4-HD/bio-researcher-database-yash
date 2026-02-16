@@ -1,21 +1,51 @@
+name: Keep App Awake
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '0 */3 * * *' # Runs every 3 hours for better reliability
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Streamlit Apps
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Playwright
         run: |
-          curl -I https://bio-concepts-simplified-yash.streamlit.app/
-          curl -I https://bio-concepts-simplified-v2-yash.streamlit.app/
-          curl -I https://bio-researcher-database-yash.streamlit.app/
-          curl -I https://bio-tikz-simplifiedv2-yash.streamlit.app/
-          curl -I https://bio-tikz-studio-yash.streamlit.app/
-          curl -I https://cd40-immunosome-tool-yash.streamlit.app/
-          curl -I https://huntington-research-yash.streamlit.app/
-          curl -I https://huntington-research-app-backup-yash.streamlit.app/
-          curl -I https://immunopet-tracer-optimizer-yash.streamlit.app/
-          curl -I https://neurometabolic-validation-v2-yash.streamlit.app/
+          python -m pip install playwright
+          playwright install chromium
+
+      - name: Deep Ping Apps
+        run: |
+          python -c "
+          from playwright.sync_api import sync_playwright
+          urls = [
+              'https://bio-concepts-simplified-yash.streamlit.app/',
+              'https://bio-concepts-simplifiedv2-yash.streamlit.app/',
+              'https://bio-researcher-database-yash.streamlit.app/',
+              'https://bio-tikz-simplifiedv2-yash.streamlit.app/',
+              'https://bio-tikz-studio-yash.streamlit.app/',
+              'https://cd40-immunosome-tool-yash.streamlit.app/',
+              'https://huntington-research-app-yash.streamlit.app/',
+              'https://huntington-research-app-backup-yash.streamlit.app/',
+              'https://immunopet-tracer-optimizer-yash.streamlit.app/',
+              'https://neurometabolic-validation-v2-yash.streamlit.app/'
+          ]
+          with sync_playwright() as p:
+              browser = p.chromium.launch()
+              page = browser.new_page()
+              for url in urls:
+                  try:
+                      print(f'Visiting {url}...')
+                      page.goto(url, wait_until='networkidle', timeout=60000)
+                      print(f'Success: {url} is awake.')
+                  except Exception as e:
+                      print(f'Failed to wake {url}: {e}')
+              browser.close()
+          "

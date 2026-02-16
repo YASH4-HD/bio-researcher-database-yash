@@ -1,7 +1,7 @@
 name: Keep App Awake
 on:
   schedule:
-    - cron: '0 */6 * * *' # Runs every 6 hours
+    - cron: '0 */6 * * *'
   workflow_dispatch: # Allows you to run it manually
 
 jobs:
@@ -9,4 +9,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping Streamlit App
-        run: curl -I https://your-app-url.streamlit.app
+        run: curl -I https://bio-concepts-simplified-yash.streamlit.app/

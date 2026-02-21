@@ -35,7 +35,8 @@ jobs:
               'https://huntington-research-app.streamlit.app/',
               'https://huntington-research-app-backup.streamlit.app/',
               'https://immunopet-tracer-optimizer-yash.streamlit.app/',
-              'https://neurometabolic-validation-v2-yash.streamlit.app/'
+              'https://neurometabolic-validation-v2-yash.streamlit.app/',
+              'https://zebrafish-3d-morphometry-suite-yash.streamlit.app/'
           ]
           with sync_playwright() as p:
               browser = p.chromium.launch()

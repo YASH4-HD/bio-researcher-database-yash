@@ -32,7 +32,7 @@ jobs:
               'https://bio-tikz-simplifiedv2-yash.streamlit.app/',
               'https://bio-tikz-studio-yash.streamlit.app/',
               'https://cd40-immunosome-tool-yash.streamlit.app/',
-              'https://huntington-research-app-yash.streamlit.app/',
+              'https://huntington-research-app.streamlit.app/',
               'https://huntington-research-app-backup-yash.streamlit.app/',
               'https://immunopet-tracer-optimizer-yash.streamlit.app/',
               'https://neurometabolic-validation-v2-yash.streamlit.app/'
